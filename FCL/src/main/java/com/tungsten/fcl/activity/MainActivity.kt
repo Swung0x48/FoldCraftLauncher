@@ -484,6 +484,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 add(FCLConfig.Renderer.RENDERER_VGPU)
                 add(FCLConfig.Renderer.RENDERER_ZINK)
                 add(FCLConfig.Renderer.RENDERER_FREEDRENO)
+                add(FCLConfig.Renderer.RENDERER_MOBILEGLUES)
             }
             versionSetting.renderer = rendererList[position]
             popupWindow?.dismiss()
