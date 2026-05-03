@@ -79,6 +79,7 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
     private FCLButton exportLog;
     private FCLButton requestAudioRecord;
     private FCLSwitch autoExitLauncher;
+    private FCLSwitch autoCountdownLaunch;
     private FCLSpinner<String> themeMode;
     private FCLButton theme;
     private FCLButton theme2;
@@ -128,6 +129,7 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
         exportLog = findViewById(R.id.export_log);
         requestAudioRecord = findViewById(R.id.request_audio_record);
         autoExitLauncher = findViewById(R.id.auto_exit_launcher);
+        autoCountdownLaunch = findViewById(R.id.auto_countdown_launch);
         themeMode = findViewById(R.id.theme_mode);
         theme = findViewById(R.id.theme);
         theme2 = findViewById(R.id.theme2);
@@ -219,6 +221,9 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
 
         autoExitLauncher.setChecked(sharedPreferences.getBoolean("autoExitLauncher", false));
         autoExitLauncher.setOnCheckedChangeListener(this);
+
+        autoCountdownLaunch.setChecked(sharedPreferences.getBoolean("autoCountdownLaunch", false));
+        autoCountdownLaunch.setOnCheckedChangeListener(this);
 
         ignoreNotch.setChecked(ThemeEngine.getInstance().getTheme().isFullscreen());
         ignoreNotch.setOnCheckedChangeListener(this);
@@ -661,6 +666,8 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
             sharedPreferences.edit().putBoolean("disableFullscreenInput", isChecked).apply();
         } else if (buttonView == autoExitLauncher) {
             sharedPreferences.edit().putBoolean("autoExitLauncher", isChecked).apply();
+        } else if (buttonView == autoCountdownLaunch) {
+            sharedPreferences.edit().putBoolean("autoCountdownLaunch", isChecked).apply();
         }
     }
 

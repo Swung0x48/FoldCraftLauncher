@@ -13,6 +13,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.TextureView
@@ -119,6 +120,8 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     private lateinit var sharedPreferences: SharedPreferences
     var mediaPlayer: MediaPlayer? = null
     private var videoPosition = 0
+    private var autoLaunchCountdownDialog: FCLAlertDialog? = null
+    private var autoLaunchCountdownTimer: CountDownTimer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -264,11 +267,19 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 setupVersionDisplay()
                 playAnim()
                 uiLayout.postDelayed(1500) {
-                    GuideUtil.show(
-                        activity = this@MainActivity,
-                        GuideUtil.TAG_GUIDE_THEME_2 to setting.guideTarget(title = getString(R.string.guide_theme2)),
-                        GuideUtil.TAG_GUIDE_SHARE_LOG to home.guideTarget(title = getString(R.string.guide_share_log))
-                    )
+                    if (shouldAutoLaunchOnStartup(savedInstanceState == null)) {
+                        val selectedProfile = Profiles.getSelectedProfile()
+                        val versionId = selectedProfile.selectedVersion
+                        if (versionId != null) {
+                            showAutoLaunchCountdown(selectedProfile, versionId)
+                        }
+                    } else {
+                        GuideUtil.show(
+                            activity = this@MainActivity,
+                            GuideUtil.TAG_GUIDE_THEME_2 to setting.guideTarget(title = getString(R.string.guide_theme2)),
+                            GuideUtil.TAG_GUIDE_SHARE_LOG to home.guideTarget(title = getString(R.string.guide_share_log))
+                        )
+                    }
                 }
             }
         }
@@ -294,6 +305,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
 
     override fun onPause() {
         super.onPause()
+        dismissAutoLaunchCountdown()
         _uiManager?.onPause()
         if (shouldPlayVideo() && binding.videoView.isPlaying) {
             videoPosition = binding.videoView.currentPosition
@@ -311,6 +323,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     }
 
     override fun onDestroy() {
+        dismissAutoLaunchCountdown()
         super.onDestroy()
         if (shouldPlayVideo()) {
             mediaPlayer = null
@@ -398,21 +411,112 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 JarExecutorHelper.start(this@MainActivity, this@MainActivity)
             }
             if (view === start) {
-                if (!Controllers.isInitialized()) {
-                    title.setTextWithAnim(getString(R.string.message_loading_controllers))
-                    AnimUtil.playTranslationX(start, 700, 0f, 50f, -50f, 50f, -50f, 0f)
-                        .interpolator(OvershootInterpolator()).start()
+                launchSelectedVersion()
+            }
+        }
+    }
+
+    private fun shouldAutoLaunchOnStartup(isColdStart: Boolean): Boolean {
+        if (!isColdStart || !sharedPreferences.getBoolean("autoCountdownLaunch", false)) {
+            return false
+        }
+        if (intent.getStringExtra("modpack_cache_path") != null) {
+            return false
+        }
+        val selectedProfile = Profiles.getSelectedProfile()
+        val versionId = selectedProfile.selectedVersion ?: return false
+        return selectedProfile.repository.isLoaded && selectedProfile.repository.hasVersion(versionId)
+    }
+
+    private fun showAutoLaunchCountdown(profile: Profile, versionId: String) {
+        dismissAutoLaunchCountdown()
+        if (isFinishing || isDestroyed) {
+            return
+        }
+
+        val dialog = FCLAlertDialog(this).apply {
+            setAlertLevel(FCLAlertDialog.AlertLevel.INFO)
+            setCancelable(false)
+            setTitle(getString(R.string.launcher_auto_countdown_title))
+            setNegativeButton(getString(R.string.button_cancel)) {
+                autoLaunchCountdownTimer?.cancel()
+                autoLaunchCountdownTimer = null
+            }
+            setOnDismissListener {
+                autoLaunchCountdownTimer?.cancel()
+                autoLaunchCountdownTimer = null
+                if (autoLaunchCountdownDialog === this) {
+                    autoLaunchCountdownDialog = null
+                }
+            }
+        }
+        autoLaunchCountdownDialog = dialog
+
+        fun updateMessage(seconds: Int) {
+            dialog.setMessage(
+                getString(
+                    R.string.launcher_auto_countdown_message,
+                    versionId,
+                    seconds
+                )
+            )
+        }
+
+        updateMessage(5)
+        autoLaunchCountdownTimer = object : CountDownTimer(5000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                updateMessage(((millisUntilFinished + 999) / 1000L).toInt())
+            }
+
+            override fun onFinish() {
+                if (autoLaunchCountdownDialog !== dialog) {
                     return
                 }
-                val selectedProfile = Profiles.getSelectedProfile()
-                DriverPlugin.selected = runCatching {
-                    DriverPlugin.driverList.find {
-                        it.driver == selectedProfile.getVersionSetting(selectedProfile.selectedVersion).driver
-                    }
-                }.getOrNull() ?: DriverPlugin.driverList[0]
-                DisplayUtil.refreshDisplayMetrics(this@MainActivity)
-                Versions.launch(this@MainActivity, selectedProfile)
+                dialog.dismiss()
+                launchSelectedVersion(profile, versionId, true)
             }
+        }
+
+        dialog.show()
+        autoLaunchCountdownTimer?.start()
+    }
+
+    private fun dismissAutoLaunchCountdown() {
+        autoLaunchCountdownTimer?.cancel()
+        autoLaunchCountdownTimer = null
+        autoLaunchCountdownDialog?.dismiss()
+        autoLaunchCountdownDialog = null
+    }
+
+    private fun launchSelectedVersion() {
+        launchSelectedVersion(Profiles.getSelectedProfile(), Profiles.getSelectedProfile().selectedVersion, false)
+    }
+
+    private fun launchSelectedVersion(
+        selectedProfile: Profile,
+        versionId: String?,
+        skipControllerLoadingCheck: Boolean
+    ) {
+        if (!skipControllerLoadingCheck && !Controllers.isInitialized()) {
+            binding.title.setTextWithAnim(getString(R.string.message_loading_controllers))
+            AnimUtil.playTranslationX(binding.start, 700, 0f, 50f, -50f, 50f, -50f, 0f)
+                .interpolator(OvershootInterpolator()).start()
+            return
+        }
+
+        val driver = versionId?.let {
+            runCatching {
+                DriverPlugin.driverList.find { driver ->
+                    driver.driver == selectedProfile.getVersionSetting(it).driver
+                }
+            }.getOrNull()
+        } ?: DriverPlugin.driverList[0]
+        DriverPlugin.selected = driver
+        DisplayUtil.refreshDisplayMetrics(this@MainActivity)
+        if (versionId == null) {
+            Versions.launch(this@MainActivity, selectedProfile)
+        } else {
+            Versions.launch(this@MainActivity, selectedProfile, versionId)
         }
     }
 

@@ -1162,4 +1162,7 @@
     <string name="slide_selection">滑动选择</string>
     <string name="swap_hands">双击切换副手</string>
 
+    <string name="settings_launcher_auto_countdown_launch">自动倒数启动</string>
+    <string name="launcher_auto_countdown_title">自动启动</string>
+    <string name="launcher_auto_countdown_message">将在 %2$d 秒后自动启动当前选中的实例“%1$s”。\n点击“取消”可留在启动器。</string>
 </resources>
