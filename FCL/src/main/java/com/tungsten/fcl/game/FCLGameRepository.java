@@ -74,6 +74,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -347,6 +348,10 @@ public class FCLGameRepository extends DefaultGameRepository {
     }
 
     public LaunchOptions getLaunchOptions(String version, JavaVersion javaVersion, File gameDir) {
+        return getLaunchOptions(version, javaVersion, gameDir, null);
+    }
+
+    public LaunchOptions getLaunchOptions(String version, JavaVersion javaVersion, File gameDir, Consumer<LaunchOptions.Builder> injector) {
         VersionSetting vs = getVersionSetting(version);
 
         LaunchOptions.Builder builder = new LaunchOptions.Builder()
@@ -384,6 +389,10 @@ public class FCLGameRepository extends DefaultGameRepository {
             } catch (IOException | JsonParseException e) {
                 e.printStackTrace();
             }
+        }
+
+        if (injector != null) {
+            injector.accept(builder);
         }
 
         if (vs.isAutoMemory() && builder.getJavaArguments().stream().anyMatch(it -> it.startsWith("-Xmx"))) {

@@ -97,6 +97,7 @@ import kotlin.system.exitProcess
 
 class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     companion object {
+        private const val AUTO_QUICK_PLAY_SINGLEPLAYER_WORLD = "test"
         private lateinit var instance: WeakReference<MainActivity>
 
         @JvmStatic
@@ -473,7 +474,12 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                     return
                 }
                 dialog.dismiss()
-                launchSelectedVersion(profile, versionId, true)
+                launchSelectedVersion(
+                    profile,
+                    versionId,
+                    true,
+                    AUTO_QUICK_PLAY_SINGLEPLAYER_WORLD
+                )
             }
         }
 
@@ -489,13 +495,19 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     }
 
     private fun launchSelectedVersion() {
-        launchSelectedVersion(Profiles.getSelectedProfile(), Profiles.getSelectedProfile().selectedVersion, false)
+        launchSelectedVersion(
+            Profiles.getSelectedProfile(),
+            Profiles.getSelectedProfile().selectedVersion,
+            false,
+            null
+        )
     }
 
     private fun launchSelectedVersion(
         selectedProfile: Profile,
         versionId: String?,
-        skipControllerLoadingCheck: Boolean
+        skipControllerLoadingCheck: Boolean,
+        autoQuickPlaySingleplayerWorld: String?
     ) {
         if (!skipControllerLoadingCheck && !Controllers.isInitialized()) {
             binding.title.setTextWithAnim(getString(R.string.message_loading_controllers))
@@ -515,8 +527,12 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         DisplayUtil.refreshDisplayMetrics(this@MainActivity)
         if (versionId == null) {
             Versions.launch(this@MainActivity, selectedProfile)
-        } else {
+        } else if (autoQuickPlaySingleplayerWorld.isNullOrBlank()) {
             Versions.launch(this@MainActivity, selectedProfile, versionId)
+        } else {
+            Versions.launch(this@MainActivity, selectedProfile, versionId) { launcherHelper ->
+                launcherHelper.setQuickPlaySingleplayerWorld(autoQuickPlaySingleplayerWorld)
+            }
         }
     }
 

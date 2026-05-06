@@ -116,6 +116,7 @@ public final class LauncherHelper {
     private final String selectedVersion;
     private final VersionSetting setting;
     private final TaskDialog launchingStepsPane;
+    private String quickPlaySingleplayerWorld;
 
     public LauncherHelper(Context context, Profile profile, Account account, String selectedVersion) {
         this.context = Objects.requireNonNull(context);
@@ -125,6 +126,10 @@ public final class LauncherHelper {
         this.setting = profile.getVersionSetting(selectedVersion);
         this.launchingStepsPane = new TaskDialog(context, TaskCancellationAction.NORMAL);
         this.launchingStepsPane.setTitle(context.getString(R.string.version_launch));
+    }
+
+    public void setQuickPlaySingleplayerWorld(String quickPlaySingleplayerWorld) {
+        this.quickPlaySingleplayerWorld = quickPlaySingleplayerWorld;
     }
 
     public void launch() {
@@ -185,7 +190,18 @@ public final class LauncherHelper {
                 .thenComposeAsync(() -> gameVersion.map(s -> new GameVerificationFixTask(dependencyManager, s, version.get())).orElse(null))
                 .thenComposeAsync(() -> logIn(context, account).withStage("launch.state.logging_in"))
                 .thenComposeAsync(authInfo -> Task.supplyAsync(() -> {
-                            LaunchOptions launchOptions = repository.getLaunchOptions(selectedVersion, javaVersionRef.get(), profile.getGameDir());
+                            LaunchOptions launchOptions = repository.getLaunchOptions(selectedVersion, javaVersionRef.get(), profile.getGameDir(), builder -> {
+                                if (StringUtils.isBlank(quickPlaySingleplayerWorld)) {
+                                    return;
+                                }
+                                if (gameVersion.map(it -> GameVersionNumber.compare(it, "1.20") >= 0).orElse(false)) {
+                                    builder.setServerIp(null);
+                                    builder.getGameArguments().add("--quickPlaySingleplayer");
+                                    builder.getGameArguments().add(quickPlaySingleplayerWorld);
+                                } else {
+                                    LOG.info("Skip quick play singleplayer for unsupported game version: " + selectedVersion);
+                                }
+                            });
                             FCLGameLauncher launcher = new FCLGameLauncher(
                                     context,
                                     repository,
