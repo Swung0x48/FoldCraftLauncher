@@ -367,7 +367,7 @@ public class FCLGameRepository extends DefaultGameRepository {
                         MemoryUtils.getFreeDeviceMemory(FCLPath.CONTEXT) * 1024L * 1024L,
                         vs.isAutoMemory()
                 ) / 1024 / 1024))
-                .setMinMemory(vs.getMaxMemory())
+                .setMinMemory(vs.isAutoMemory() ? null : vs.getMaxMemory())
                 .setUUid(vs.getUuid())
                 .setWidth((int) (AndroidUtils.getScreenWidth() * vs.getScaleFactor() / 100.0))
                 .setHeight((int) (AndroidUtils.getScreenHeight() * vs.getScaleFactor() / 100.0))
@@ -459,9 +459,10 @@ public class FCLGameRepository extends DefaultGameRepository {
 
     public static long getAllocatedMemory(long minimum, long available, boolean auto) {
         if (auto) {
-            available -= 384 * 1024 * 1024; // Reserve 384MiB memory for off-heap memory and HMCL itself
+            final long minimumUsableHeap = 512L * 1024 * 1024;
+            available -= 1024L * 1024 * 1024; // Leave room for native heap, Vulkan driver memory, and the launcher itself
             if (available <= 0) {
-                return minimum;
+                return Math.min(minimum, minimumUsableHeap);
             }
 
             final long threshold = 8L * 1024 * 1024 * 1024;
@@ -469,7 +470,7 @@ public class FCLGameRepository extends DefaultGameRepository {
                             ? (long) (available * 0.8)
                             : (long) (threshold * 0.8 + (available - threshold) * 0.2),
                     16384L * 1024 * 1024);
-            return Math.max(minimum, suggested);
+            return Math.max(minimumUsableHeap, Math.min(minimum, suggested));
         } else {
             return minimum;
         }
