@@ -59,5 +59,7 @@ dependencies {
     implementation(libs.bytehook)
     implementation(libs.appcompat)
     implementation(libs.material)
+    implementation(project(":MobileGL"))
+    implementation(project(":SimpleFPEWrapper"))
     implementation(project(":MobileGlues"))
 }

@@ -17,6 +17,8 @@ object RendererManager {
     lateinit var RENDERER_NGGL4ES: Renderer
     lateinit var RENDERER_MOBILEGLUES: Renderer
     lateinit var RENDERER_MOBILEGL: Renderer
+    lateinit var RENDERER_SIMPLEFPEWRAPPER: Renderer
+    lateinit var RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES: Renderer
     private var isInit = false
 
     @JvmStatic
@@ -149,6 +151,32 @@ object RendererManager {
             ""
         )
 
+        RENDERER_SIMPLEFPEWRAPPER = Renderer(
+            "SimpleFPEWrapper",
+            context.getString(R.string.settings_fcl_renderer_simplefpewrapper),
+            "libSimpleFPEWrapper.so",
+            "libMobileGL.so",
+            "",
+            null,
+            null,
+            Renderer.ID_SIMPLEFPEWRAPPER,
+            "",
+            ""
+        )
+
+        RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES = Renderer(
+            "SimpleFPEWrapperMobileGlues",
+            context.getString(R.string.settings_fcl_renderer_simplefpewrapper_mobileglues),
+            "libSimpleFPEWrapper.so",
+            "libmobileglues.so",
+            "",
+            null,
+            null,
+            Renderer.ID_SIMPLEFPEWRAPPER_MOBILEGLUES,
+            "",
+            ""
+        )
+
         RendererPlugin.init(context)
         addRenderer()
         DriverPlugin.init(context)
@@ -164,6 +192,8 @@ object RendererManager {
         rendererList.add(RENDERER_FREEDRENO)
         rendererList.add(RENDERER_MOBILEGLUES)
         rendererList.add(RENDERER_MOBILEGL)
+        rendererList.add(RENDERER_SIMPLEFPEWRAPPER)
+        rendererList.add(RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES)
         rendererList.addAll(RendererPlugin.rendererList)
     }
 
