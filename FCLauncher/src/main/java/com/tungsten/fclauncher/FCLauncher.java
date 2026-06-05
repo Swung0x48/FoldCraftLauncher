@@ -297,7 +297,7 @@ public class FCLauncher {
         }
 
         if (renderer.isEqual(Renderer.ID_MOBILEGL)) {
-            envMap.put("MOBILEGL_BACKEND_TYPE", "DirectVulkan");
+            envMap.put("MOBILEGL_BACKEND_TYPE", "DirectGLES");
         }
 
         if (renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER)) {
