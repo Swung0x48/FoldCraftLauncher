@@ -297,7 +297,7 @@ public class FCLauncher {
         }
 
         if (renderer.isEqual(Renderer.ID_MOBILEGL)) {
-            envMap.put("MOBILEGL_BACKEND_TYPE", "DirectGLES");
+            envMap.put("MOBILEGL_BACKEND_TYPE", "DirectVulkan");
         }
 
         if (renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER)) {
@@ -306,7 +306,7 @@ public class FCLauncher {
             envMap.put("POJAV_RENDERER", "opengles3");
             envMap.put("POJAVEXEC_EGL", renderer.getEglName());
             envMap.put("SFPEW_EGL", renderer.getEglName());
-            envMap.put("MOBILEGL_BACKEND_TYPE", "DirectGLES");
+            envMap.put("MOBILEGL_BACKEND_TYPE", "DirectVulkan");
         }
 
         if (renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER_MOBILEGLUES)) {
