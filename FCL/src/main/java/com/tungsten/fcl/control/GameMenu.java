@@ -58,6 +58,7 @@ import com.tungsten.fcl.setting.GameOption;
 import com.tungsten.fcl.setting.MenuSetting;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fcl.util.FXUtils;
+import com.tungsten.fclauncher.MobileGLTraceCapture;
 import com.tungsten.fclauncher.bridge.FCLBridge;
 import com.tungsten.fclauncher.bridge.FCLBridgeCallback;
 import com.tungsten.fclauncher.keycodes.FCLKeycodes;
@@ -138,6 +139,8 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
     private FCLButton sendKeycode;
     private FCLButton gamepadResetMapper;
     private FCLButton gamepadButtonBinding;
+    private View captureMobileGLTraceLabel;
+    private FCLButton captureMobileGLTrace;
     private FCLButton forceExit;
 
     private MultiplayerDialog multiplayerDialog;
@@ -412,12 +415,17 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         sendKeycode = findViewById(R.id.open_send_key);
         gamepadResetMapper = findViewById(R.id.gamepad_reset_mapper);
         gamepadButtonBinding = findViewById(R.id.gamepad_reset_button_binding);
+        captureMobileGLTraceLabel = findViewById(R.id.capture_mobilegl_trace_label);
+        captureMobileGLTrace = findViewById(R.id.capture_mobilegl_trace);
         forceExit = findViewById(R.id.force_exit);
 
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("third_party", Context.MODE_PRIVATE);
         boolean multiplayerEnabled = sharedPreferences.getBoolean("terracotta", false);
         openMultiplayer.setVisibility((isSimulated() || !multiplayerEnabled) ? View.GONE : View.VISIBLE);
         openMultiplayerButton.setVisibility((isSimulated() || !multiplayerEnabled) ? View.GONE : View.VISIBLE);
+        int captureVisibility = isMobileGLDebugRenderer() ? View.VISIBLE : View.GONE;
+        captureMobileGLTraceLabel.setVisibility(captureVisibility);
+        captureMobileGLTrace.setVisibility(captureVisibility);
 
         disableGamepadMapping.setOnCheckedChangeListener((buttonView, isChecked) -> {
             gamepadDisabled = isChecked;
@@ -578,6 +586,7 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         sendKeycode.setOnClickListener(this);
         gamepadResetMapper.setOnClickListener(this);
         gamepadButtonBinding.setOnClickListener(this);
+        captureMobileGLTrace.setOnClickListener(this);
         forceExit.setOnClickListener(this);
     }
 
@@ -942,6 +951,13 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
                 new GamepadMapDialog(getActivity(), fclInput).show();
             }
         }
+        if (v == captureMobileGLTrace) {
+            boolean requested = MobileGLTraceCapture.requestOneShotCapture();
+            Toast.makeText(getActivity(),
+                    requested ? R.string.menu_settings_capture_mobilegl_trace_requested
+                            : R.string.menu_settings_capture_mobilegl_trace_failed,
+                    Toast.LENGTH_SHORT).show();
+        }
         if (v == forceExit) {
             FCLAlertDialog.Builder builder = new FCLAlertDialog.Builder(activity);
             builder.setAlertLevel(FCLAlertDialog.AlertLevel.ALERT);
@@ -951,6 +967,11 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
             builder.setCancelable(false);
             builder.create().show();
         }
+    }
+
+    private boolean isMobileGLDebugRenderer() {
+        return fclBridge != null && fclBridge.getRenderer() != null &&
+                fclBridge.getRenderer().toLowerCase().contains("mobilegl");
     }
 
     private void refreshWindowsSize(double factor) {

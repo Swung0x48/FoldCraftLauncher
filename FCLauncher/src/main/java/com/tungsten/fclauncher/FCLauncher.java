@@ -222,7 +222,7 @@ public class FCLauncher {
                 a = "-Djava.library.path=${natives_directory}";
             }
             a = a.replace("${natives_directory}", libraryPath);
-            args[i] = config.getRenderer() == null ? a : a.replace("${gl_lib_name}", config.getRenderer().getGLPath());
+            args[i] = config.getRenderer() == null ? a : a.replace("${gl_lib_name}", MobileGLTraceCapture.resolveGlPath(config));
         }
         return args;
     }
@@ -396,6 +396,7 @@ public class FCLauncher {
         if (render) {
             addRendererEnv(config, envMap);
         }
+        MobileGLTraceCapture.addEnv(config, envMap);
         printTaskTitle(bridge, "Env Map");
         for (String key : envMap.keySet()) {
             log(bridge, "Env: " + key + "=" + envMap.get(key));
@@ -458,7 +459,7 @@ public class FCLauncher {
                     }
                 });
             }
-            long handle = bridge.dlopen(config.getRenderer().getGLPath());
+            long handle = bridge.dlopen(MobileGLTraceCapture.resolveGlPath(config));
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 try {
                     Os.setenv("RENDERER_HANDLE", handle + "", true);

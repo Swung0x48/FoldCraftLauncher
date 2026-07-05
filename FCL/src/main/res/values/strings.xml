@@ -561,6 +561,10 @@
     <string name="menu_settings_force_exit">Force Exit</string>
     <string name="menu_settings_force_exit_button">Exit</string>
     <string name="menu_settings_force_exit_msg">Are you sure to force exit?</string>
+    <string name="menu_settings_capture_mobilegl_trace">MobileGL Trace</string>
+    <string name="menu_settings_capture_mobilegl_trace_button">Capture</string>
+    <string name="menu_settings_capture_mobilegl_trace_requested">MobileGL trace capture requested</string>
+    <string name="menu_settings_capture_mobilegl_trace_failed">Failed to request MobileGL trace capture</string>
     <string name="menu_settings_function">Function</string>
     <string name="menu_settings_gesture">Gesture</string>
     <string name="menu_settings_gesture_mode">Gesture Mode</string>
