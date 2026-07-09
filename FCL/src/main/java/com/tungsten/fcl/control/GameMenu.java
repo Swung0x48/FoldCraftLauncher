@@ -624,8 +624,8 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
     }
 
     @Override
-    public void setup(Activity activity, FCLBridge fclBridge) {
-        this.activity = (FCLActivity) activity;
+    public void setup(FCLActivity activity, FCLBridge fclBridge) {
+        this.activity = activity;
         this.fclBridge = fclBridge;
         this.simulated = fclBridge == null;
         this.fclInput = new FCLInput(this);
