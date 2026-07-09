@@ -37,7 +37,7 @@ public final class MobileGLTraceCapture {
 
     public static boolean isMobileGLRenderer(Renderer renderer) {
         return renderer != null &&
-                (renderer.isEqual(Renderer.ID_MOBILEGL) || renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER));
+                (renderer.isEqual(Renderer.ID_MOBILEGL) || renderer.isEqual(Renderer.ID_MOBILEGL_MAGMA) || renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER));
     }
 
     public static boolean isEnabled(Context context, Renderer renderer) {

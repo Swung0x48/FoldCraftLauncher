@@ -885,7 +885,8 @@
     <string name="settings_fcl_renderer_freedreno" >Freedreno (OpenGL 4.6, only support GPU a616-a660)</string>
     <string name="settings_fcl_renderer_nggl4es">Krypton Wrapper (OpenGL 3.1+, built-in)</string>
     <string name="settings_fcl_renderer_mobileglues" translatable="false">MobileGlues (Dev)</string>
-    <string name="settings_fcl_renderer_mobilegl" translatable="false">MobileGL (Dev)</string>
+    <string name="settings_fcl_renderer_mobilegl_espryt" translatable="false">MobileGL (Dev, Espryt)</string>
+    <string name="settings_fcl_renderer_mobilegl_magma" translatable="false">MobileGL (Dev, Magma)</string>
     <string name="settings_fcl_renderer_simplefpewrapper" translatable="false">SimpleFPEWrapper -> MobileGL (Dev)</string>
     <string name="settings_fcl_renderer_simplefpewrapper_mobileglues" translatable="false">SimpleFPEWrapper -> MobileGlues (Dev)</string>
 

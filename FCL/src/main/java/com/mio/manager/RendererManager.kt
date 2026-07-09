@@ -16,7 +16,8 @@ object RendererManager {
     lateinit var RENDERER_FREEDRENO: Renderer
     lateinit var RENDERER_NGGL4ES: Renderer
     lateinit var RENDERER_MOBILEGLUES: Renderer
-    lateinit var RENDERER_MOBILEGL: Renderer
+    lateinit var RENDERER_MOBILEGL_ESPRYT: Renderer
+    lateinit var RENDERER_MOBILEGL_MAGMA: Renderer
     lateinit var RENDERER_SIMPLEFPEWRAPPER: Renderer
     lateinit var RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES: Renderer
     private var isInit = false
@@ -138,15 +139,28 @@ object RendererManager {
             ""
         )
 
-        RENDERER_MOBILEGL = Renderer(
-            "MobileGLDev",
-            context.getString(R.string.settings_fcl_renderer_mobilegl),
+        RENDERER_MOBILEGL_ESPRYT = Renderer(
+            "MobileGLDevEspryt",
+            context.getString(R.string.settings_fcl_renderer_mobilegl_espryt),
             "libMobileGL.so",
             "libMobileGL.so",
             "",
             null,
             null,
             Renderer.ID_MOBILEGL,
+            "",
+            ""
+        )
+
+        RENDERER_MOBILEGL_MAGMA = Renderer(
+            "MobileGLDevMagma",
+            context.getString(R.string.settings_fcl_renderer_mobilegl_magma),
+            "libMobileGL.so",
+            "libMobileGL.so",
+            "",
+            null,
+            null,
+            Renderer.ID_MOBILEGL_MAGMA,
             "",
             ""
         )
@@ -191,7 +205,8 @@ object RendererManager {
         rendererList.add(RENDERER_ZINK_KOPPER)
         rendererList.add(RENDERER_FREEDRENO)
         rendererList.add(RENDERER_MOBILEGLUES)
-        rendererList.add(RENDERER_MOBILEGL)
+        rendererList.add(RENDERER_MOBILEGL_ESPRYT)
+        rendererList.add(RENDERER_MOBILEGL_MAGMA)
         rendererList.add(RENDERER_SIMPLEFPEWRAPPER)
         rendererList.add(RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES)
         rendererList.addAll(RendererPlugin.rendererList)

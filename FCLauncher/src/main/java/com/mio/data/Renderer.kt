@@ -22,6 +22,7 @@ data class Renderer(
         const val ID_NGGL4ES = "e7b90ed6-e518-4d4e-93dc-5c7133cd5b31"
         const val ID_MOBILEGLUES = "2f10c7fb-432e-427c-8637-3b20f5849928"
         const val ID_MOBILEGL = "5e273ee2-baca-4c81-8e48-b63feefb9ba8"
+        const val ID_MOBILEGL_MAGMA = "2be0dc10-1eef-4ce2-b512-b266dd33fd9e"
         const val ID_SIMPLEFPEWRAPPER = "6475e195-88a8-4bb2-a25f-1abfce2159d3"
         const val ID_SIMPLEFPEWRAPPER_MOBILEGLUES = "1ea851fd-ea63-4a7d-9c3c-f3cc9d3f038a"
     }
