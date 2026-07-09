@@ -7,7 +7,6 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.SurfaceTexture
 import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
 import android.net.Uri
@@ -16,7 +15,6 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.provider.Settings
 import android.view.KeyEvent
-import android.view.TextureView
 import android.view.View
 import android.view.animation.BounceInterpolator
 import android.view.animation.OvershootInterpolator
@@ -41,6 +39,7 @@ import com.mio.util.DisplayUtil
 import com.mio.util.GuideUtil
 import com.mio.util.GuideUtil.Companion.guideTarget
 import com.mio.util.ImageUtil
+import com.mio.util.showWarningDialog
 import com.tungsten.fcl.R
 import com.tungsten.fcl.databinding.ActivityMainBinding
 import com.tungsten.fcl.game.JarExecutorHelper
@@ -58,7 +57,6 @@ import com.tungsten.fcl.upgrade.UpdateChecker
 import com.tungsten.fcl.util.AndroidUtils
 import com.tungsten.fcl.util.FXUtils
 import com.tungsten.fcl.util.WeakListenerHolder
-import com.tungsten.fclauncher.bridge.FCLBridge
 import com.tungsten.fclauncher.plugins.DriverPlugin
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.auth.Account
@@ -159,7 +157,10 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                     override fun loadScreenshots(modRepository: RemoteModRepository): MutableList<RemoteMod.Screenshot> {
                         throw IOException()
                     }
-                })
+                },
+                114514,
+                ""
+            )
         )
 
         if (!ConfigHolder.isInit()) {
@@ -187,6 +188,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
 
                 account.setOnClickListener(this@MainActivity)
                 version.setOnClickListener(this@MainActivity)
+                goSetting.setOnClickListener(this@MainActivity)
                 start.setOnClickListener(this@MainActivity)
                 start.setOnLongClickListener { view ->
                     RendererSelectDialog(this@MainActivity, false) {
@@ -288,7 +290,6 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             }
         setupLiveBackground()
-        refreshScreenSize()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -408,11 +409,35 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 uiManager.onBackPressed()
             }
             if (view === jar) {
+                if (sharedPreferences.getBoolean("showJarExecutorWarnDialog", true)) {
+                    showWarningDialog(this@MainActivity, getString(R.string.jar_executor_warn)){
+                        sharedPreferences.edit {
+                            putBoolean("showJarExecutorWarnDialog", false)
+                        }
+                    }
+                    return
+                }
                 jar.isSelected = false
-                JarExecutorHelper.start(this@MainActivity, this@MainActivity)
+                JarExecutorHelper.start(this@MainActivity)
             }
             if (view === start) {
                 launchSelectedVersion()
+            }
+            if (view === goSetting) {
+                val profile = Profiles.getSelectedProfile()
+                if (profile.versionSetting.isGlobal) {
+                    setting.isSelected = true
+                    uiManager.settingUI.runAfterInit {
+                        val tab = uiManager.settingUI.tabLayout.getTabAt(0)
+                        uiManager.settingUI.tabLayout.selectTab(tab)
+                    }
+                } else {
+                    manage.isSelected = true
+                    uiManager.manageUI.runAfterInit {
+                        val tab = uiManager.manageUI.tabLayout.getTabAt(0)
+                        uiManager.manageUI.tabLayout.selectTab(tab)
+                    }
+                }
             }
         }
     }
@@ -524,6 +549,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             }.getOrNull()
         } ?: DriverPlugin.driverList[0]
         DriverPlugin.selected = driver
+        refreshScreenSize()
         DisplayUtil.refreshDisplayMetrics(this@MainActivity)
         if (versionId == null) {
             Versions.launch(this@MainActivity, selectedProfile)
@@ -551,7 +577,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                             TexturesLoader.toAvatar(
                                 TexturesLoader.getDefaultSkin(TextureModel.ALEX).image,
                                 ConvertUtils.dip2px(
-                                    this@MainActivity, 30f
+                                    this@MainActivity, 52f
                                 )
                             ).toDrawable(resources)
                         )
@@ -564,7 +590,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                         avatar.imageProperty().bind(
                             TexturesLoader.avatarBinding(
                                 account, ConvertUtils.dip2px(
-                                    this@MainActivity, 30f
+                                    this@MainActivity, 52f
                                 )
                             )
                         )
@@ -582,7 +608,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 binding.avatar.imageProperty().bind(
                     TexturesLoader.avatarBinding(
                         currentAccount.get(), ConvertUtils.dip2px(
-                            this@MainActivity, 30f
+                            this@MainActivity, 52f
                         )
                     )
                 )
@@ -874,7 +900,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 binding.videoView.seekTo(0)
                 binding.videoView.start()
             }
-            binding.videoView.setOnErrorListener { mp, what, extra ->
+            binding.videoView.setOnErrorListener { _, _, _ ->
                 mediaPlayer = null
                 return@setOnErrorListener true
             }
@@ -904,7 +930,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         ).show()
         binding.download.isSelected = true
         val downloadUI = uiManager.downloadUI
-        downloadUI.checkPageManager {
+        downloadUI.runAfterInit {
             val page = LocalModpackPage(
                 this,
                 PageManager.PAGE_ID_TEMP,
@@ -919,31 +945,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     }
 
     private fun refreshScreenSize() {
-        binding.textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(
-                surface: SurfaceTexture,
-                width: Int,
-                height: Int
-            ) {
-                DisplayUtil.screenWidth = width
-                DisplayUtil.screenHeight = height
-            }
-
-            override fun onSurfaceTextureSizeChanged(
-                surface: SurfaceTexture,
-                width: Int,
-                height: Int
-            ) {
-                DisplayUtil.screenWidth = width
-                DisplayUtil.screenHeight = height
-            }
-
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                return true
-            }
-
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-            }
-        }
+        DisplayUtil.screenWidth =  binding.root.width
+        DisplayUtil.screenHeight = binding.root.height
     }
 }

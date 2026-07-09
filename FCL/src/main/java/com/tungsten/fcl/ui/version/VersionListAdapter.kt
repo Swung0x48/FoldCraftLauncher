@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
+import com.mio.ui.adapter.ViewHolder
 import com.mio.util.AnimUtil.Companion.playTranslationX
 import com.tungsten.fcl.activity.MainActivity
 import com.tungsten.fcl.databinding.ItemVersionBinding
@@ -16,8 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class VersionListAdapter(val context: Context, private val list: ArrayList<VersionListItem>) :
-    RecyclerView.Adapter<VersionListAdapter.ViewHolder>() {
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view)
+    RecyclerView.Adapter<ViewHolder>() {
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -68,7 +68,7 @@ class VersionListAdapter(val context: Context, private val list: ArrayList<Versi
                 versionListItem.profile.selectedVersion = versionListItem.version
                 val uiManager = MainActivity.getInstance().uiManager
                 MainActivity.getInstance().binding.manage.isSelected = true
-                uiManager.manageUI.checkPageManager {
+                uiManager.manageUI.runAfterInit {
                     val tab = uiManager.manageUI.tabLayout.getTabAt(0)
                     uiManager.manageUI.tabLayout.selectTab(tab)
                 }

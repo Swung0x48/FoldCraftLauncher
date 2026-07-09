@@ -167,11 +167,6 @@ class VersionSetting : Cloneable {
             serverIpProperty.set(serverIp)
         }
 
-    val scaleFactorProperty: IntegerProperty = SimpleIntegerProperty(this, "newScaleFactor", 100)
-    var scaleFactor: Int
-        get() = scaleFactorProperty.get()
-        set(v) = scaleFactorProperty.set(v)
-
     /**
      * 0 - .minecraft<br></br>
      * 1 - .minecraft/versions/&lt;version&gt;/<br></br>
@@ -191,11 +186,11 @@ class VersionSetting : Cloneable {
             beGestureProperty.set(beGesture)
         }
 
-    val useOpenglProperty: BooleanProperty = SimpleBooleanProperty(this, "useOpengl", true)
-    var isUseOpengl: Boolean
-        get() = useOpenglProperty.get()
+    val graphicsBackendProperty: StringProperty = SimpleStringProperty(this, "graphicsBackend", "default")
+    var graphicsBackend: String
+        get() = graphicsBackendProperty.get()
         set(v) {
-            useOpenglProperty.set(v)
+            graphicsBackendProperty.set(v)
         }
 
     val textureViewProperty: BooleanProperty = SimpleBooleanProperty(this, "textureView", false)
@@ -290,10 +285,9 @@ class VersionSetting : Cloneable {
         notCheckGameProperty.addListener(listener)
         notCheckJVMProperty.addListener(listener)
         serverIpProperty.addListener(listener)
-        scaleFactorProperty.addListener(listener)
         isolateGameDirProperty.addListener(listener)
         beGestureProperty.addListener(listener)
-        useOpenglProperty.addListener(listener)
+        graphicsBackendProperty.addListener(listener)
         textureViewProperty.addListener(listener)
         vkDriverSystemProperty.addListener(listener)
         controllerProperty.addListener(listener)
@@ -318,10 +312,9 @@ class VersionSetting : Cloneable {
             it.isNotCheckGame = isNotCheckGame
             it.isNotCheckJVM = isNotCheckJVM
             it.serverIp = serverIp
-            it.scaleFactor = scaleFactor
             it.isIsolateGameDir = isIsolateGameDir
             it.isBeGesture = isBeGesture
-            it.isUseOpengl = isUseOpengl
+            it.graphicsBackend = graphicsBackend
             it.isUseTextureView = isUseTextureView
             it.isVKDriverSystem = isVKDriverSystem
             it.controller = controller
@@ -354,11 +347,10 @@ class VersionSetting : Cloneable {
                 addProperty("autoMemory", src.isAutoMemory)
                 addProperty("serverIp", src.serverIp)
                 addProperty("java", src.java)
-                addProperty("newScaleFactor", src.scaleFactor)
                 addProperty("notCheckGame", src.isNotCheckGame)
                 addProperty("notCheckJVM", src.isNotCheckJVM)
                 addProperty("beGesture", src.isBeGesture)
-                addProperty("useOpengl", src.isUseOpengl)
+                addProperty("graphicsBackend", src.graphicsBackend)
                 addProperty("textureView", src.isUseTextureView)
                 addProperty("vulkanDriverSystem", src.isVKDriverSystem)
                 addProperty("controller", src.controller)
@@ -397,11 +389,10 @@ class VersionSetting : Cloneable {
                 vs.java =
                     JavaManager.javaList.find { it.name == json["java"]?.asString }?.name
                         ?: "Auto"
-                vs.scaleFactor = json["newScaleFactor"]?.asInt ?: 100
                 vs.isNotCheckGame = json["notCheckGame"]?.asBoolean ?: false
                 vs.isNotCheckJVM = json["notCheckJVM"]?.asBoolean ?: false
                 vs.isBeGesture = json["beGesture"]?.asBoolean ?: false
-                vs.isUseOpengl = json["useOpengl"]?.asBoolean ?: false
+                vs.graphicsBackend = json["graphicsBackend"]?.asString ?: "default"
                 vs.isUseTextureView = json["textureView"]?.asBoolean ?: false
                 vs.isVKDriverSystem = json["vulkanDriverSystem"]?.asBoolean ?: false
                 vs.controller = json["controller"]?.asString ?: ("00000000")

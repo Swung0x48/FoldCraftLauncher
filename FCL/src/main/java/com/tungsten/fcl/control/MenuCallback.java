@@ -5,6 +5,7 @@ import android.view.View;
 
 import androidx.annotation.Nullable;
 
+import com.mio.ui.view.CursorView;
 import com.tungsten.fclauncher.bridge.FCLBridge;
 import com.tungsten.fclauncher.bridge.FCLBridgeCallback;
 import com.tungsten.fcllibrary.component.view.FCLImageView;
@@ -22,7 +23,7 @@ public interface MenuCallback {
 
     FCLInput getInput();
 
-    FCLImageView getCursor();
+    CursorView getCursor();
 
     int getCursorMode();
 

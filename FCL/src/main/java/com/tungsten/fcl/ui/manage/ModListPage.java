@@ -2,18 +2,20 @@ package com.tungsten.fcl.ui.manage;
 
 import static com.tungsten.fclcore.util.Logging.LOG;
 import static com.tungsten.fclcore.util.StringUtils.isNotBlank;
-import static com.tungsten.fcllibrary.browser.FileBrowser.SELECTED_FILES;
 
-import android.app.Activity;
-import android.content.ContentResolver;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.Uri;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.CompoundButton;
-import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.Toast;
+
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.MainActivity;
@@ -24,7 +26,6 @@ import com.tungsten.fcl.ui.TaskDialog;
 import com.tungsten.fcl.ui.download.DownloadPageManager;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fcl.util.ModTranslations;
-import com.tungsten.fcl.util.RequestCodes;
 import com.tungsten.fcl.util.TaskCancellationAction;
 import com.tungsten.fclcore.download.LibraryAnalyzer;
 import com.tungsten.fclcore.fakefx.beans.InvalidationListener;
@@ -43,9 +44,6 @@ import com.tungsten.fclcore.task.Schedulers;
 import com.tungsten.fclcore.task.Task;
 import com.tungsten.fclcore.task.TaskExecutor;
 import com.tungsten.fclcore.util.StringUtils;
-import com.tungsten.fcllibrary.browser.FileBrowser;
-import com.tungsten.fcllibrary.browser.options.LibMode;
-import com.tungsten.fcllibrary.browser.options.SelectionMode;
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.component.ui.FCLCommonPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
@@ -72,6 +70,8 @@ import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import kotlin.Unit;
+
 public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadable, View.OnClickListener {
 
     private final BooleanProperty modded = new SimpleBooleanProperty(this, "modded", false);
@@ -86,9 +86,8 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
 
     private FCLTextView warningText;
     private ScrollView left;
-    private RelativeLayout right;
+    private CoordinatorLayout right;
     private FCLEditText searchBar;
-    private FCLButton searchButton;
     private FCLLinearLayout normalGroup;
     private FCLLinearLayout selectedGroup;
     private FCLButton addButton;
@@ -100,7 +99,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
     private FCLButton selectInvertButton;
     private FCLButton cancelButton;
     private FCLProgressBar progressBar;
-    private ListView listView;
+    private RecyclerView recyclerView;
 
     private FCLCheckBox enabled;
     private FCLCheckBox disabled;
@@ -109,8 +108,12 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
 
     public ModListPage(Context context, int id, FCLUILayout parent, int resId) {
         super(context, id, parent, resId);
-        adapter = new LocalModListAdapter(getContext(), this);
-        listView.setAdapter(adapter);
+        adapter = new LocalModListAdapter(getContext(), this, () -> {
+            calculateMod();
+            return Unit.INSTANCE;
+        });
+        recyclerView.setAdapter(adapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(context));
         Bindings.bindContent(adapter.listProperty(), itemsProperty);
 
         adapter.selectedItemsProperty().addListener((InvalidationListener) observable -> switchLayout(adapter.selectedItemsProperty().getSize() > 0));
@@ -125,7 +128,6 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         left = findViewById(R.id.left);
         right = findViewById(R.id.right);
         searchBar = findViewById(R.id.search_filter);
-        searchButton = findViewById(R.id.search);
         normalGroup = findViewById(R.id.normal_layout);
         selectedGroup = findViewById(R.id.selected_layout);
         addButton = findViewById(R.id.add);
@@ -137,11 +139,10 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         selectInvertButton = findViewById(R.id.select_invert);
         cancelButton = findViewById(R.id.cancel);
         progressBar = findViewById(R.id.progress);
-        listView = findViewById(R.id.list);
+        recyclerView = findViewById(R.id.list);
         enabled = findViewById(R.id.enabled);
         disabled = findViewById(R.id.disabled);
 
-        searchButton.setOnClickListener(this);
         addButton.setOnClickListener(this);
         checkUpdateAllButton.setOnClickListener(this);
         checkUpdateButton.setOnClickListener(this);
@@ -155,13 +156,27 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         };
         enabled.setOnCheckedChangeListener(listener);
         disabled.setOnCheckedChangeListener(listener);
+
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                search();
+            }
+        });
     }
 
     @Override
     public void onClick(View v) {
-        if (v == searchButton) {
-            search();
-        }
         if (v == addButton) {
             add();
         }
@@ -234,7 +249,6 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
             if (loading) {
                 cancelSearch();
                 searchBar.setEnabled(false);
-                searchButton.setEnabled(false);
                 addButton.setEnabled(false);
                 checkUpdateAllButton.setEnabled(false);
                 checkUpdateButton.setEnabled(false);
@@ -243,11 +257,10 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
                 selectAllButton.setEnabled(false);
                 selectInvertButton.setEnabled(false);
                 cancelButton.setEnabled(false);
-                listView.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.GONE);
                 progressBar.setVisibility(View.VISIBLE);
             } else {
                 searchBar.setEnabled(true);
-                searchButton.setEnabled(true);
                 addButton.setEnabled(true);
                 checkUpdateAllButton.setEnabled(true);
                 checkUpdateButton.setEnabled(true);
@@ -256,7 +269,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
                 selectAllButton.setEnabled(true);
                 selectInvertButton.setEnabled(true);
                 cancelButton.setEnabled(true);
-                listView.setVisibility(View.VISIBLE);
+                recyclerView.setVisibility(View.VISIBLE);
                 progressBar.setVisibility(View.GONE);
                 cancelSearch();
             }
@@ -293,6 +306,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
             setLoading(false);
             if (exception == null)
                 try {
+                    calculateMod();
                     itemsProperty.setAll(list.stream().filter(modInfoObject -> {
                         boolean active = modInfoObject.getModInfo().isActive();
                         return (enabled.isChecked() && active) || (disabled.isChecked() && !active);
@@ -310,66 +324,60 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         suffix.add(".jar");
         suffix.add(".zip");
         suffix.add(".litemod");
-        FileBrowser.Builder builder = new FileBrowser.Builder(getContext());
-        builder.setLibMode(LibMode.FILE_CHOOSER);
-        builder.setTitle(getContext().getString(R.string.mods_choose_mod));
-        builder.setSuffix(suffix);
-        builder.setSelectionMode(SelectionMode.MULTIPLE_SELECTION);
-        builder.create().browse(getActivity(), RequestCodes.SELECT_MODS_CODE, (requestCode, resultCode, data) -> {
-            if (requestCode == RequestCodes.SELECT_MODS_CODE && resultCode == Activity.RESULT_OK && data != null) {
-                ArrayList<Uri> selectedFiles = data.getParcelableArrayListExtra(SELECTED_FILES);
-                List<Object> res = selectedFiles.stream().filter(Objects::nonNull).map(uri -> {
-                    if (Objects.equals(uri.getScheme(), ContentResolver.SCHEME_CONTENT) || Objects.equals(uri.getScheme(), ContentResolver.SCHEME_FILE)) {
-                        return uri;
+        MainActivity.getInstance().fileLauncher.launchMultiSelection(null, suffix, files -> {
+            List<Object> res = files.stream().map(Uri::parse).filter(Objects::nonNull).map(uri -> {
+                if (AndroidUtils.isDocUri(uri)) {
+                    return uri;
+                } else {
+                    return new File(uri.toString());
+                }
+            }).collect(Collectors.toList());
+
+            // It's guaranteed that succeeded and failed are thread safe here.
+            List<String> succeeded = new ArrayList<>(res.size());
+            List<String> failed = new ArrayList<>();
+
+            Task.runAsync(() -> {
+                for (Object obj : res) {
+                    if (obj instanceof File file) {
+                        try {
+                            modManager.addMod(file.toPath());
+                            succeeded.add(file.getName());
+                        } catch (Exception e) {
+                            LOG.log(Level.WARNING, "Unable to add mod " + file, e);
+                            failed.add(file.getName());
+
+                            // Actually addMod will not throw exceptions because FileChooser has already filtered files.
+                        }
                     } else {
-                        return new File(uri.toString());
-                    }
-                }).collect(Collectors.toList());
-                // It's guaranteed that succeeded and failed are thread safe here.
-                List<String> succeeded = new ArrayList<>(res.size());
-                List<String> failed = new ArrayList<>();
+                        try {
+                            Uri uri = (Uri) obj;
+                            String name = AndroidUtils.getFileName(getActivity(), uri);
+                            modManager.addMod(getActivity(), uri, name);
+                            succeeded.add(name);
+                        } catch (Exception e) {
+                            LOG.log(Level.WARNING, "Unable to add mod " + obj.toString(), e);
+                            failed.add(obj.toString());
 
-                Task.runAsync(() -> {
-                    for (Object obj : res) {
-                        if (obj instanceof File file) {
-                            try {
-                                modManager.addMod(file.toPath());
-                                succeeded.add(file.getName());
-                            } catch (Exception e) {
-                                LOG.log(Level.WARNING, "Unable to add mod " + file, e);
-                                failed.add(file.getName());
-
-                                // Actually addMod will not throw exceptions because FileChooser has already filtered files.
-                            }
-                        } else {
-                            try {
-                                Uri uri = (Uri) obj;
-                                modManager.addMod(getActivity(), uri);
-                                succeeded.add(new File(uri.getPath()).getName());
-                            } catch (Exception e) {
-                                LOG.log(Level.WARNING, "Unable to add mod " + obj.toString(), e);
-                                failed.add(obj.toString());
-
-                                // Actually addMod will not throw exceptions because FileChooser has already filtered files.
-                            }
+                            // Actually addMod will not throw exceptions because FileChooser has already filtered files.
                         }
                     }
-                }).withRunAsync(Schedulers.androidUIThread(), () -> {
-                    List<String> prompt = new ArrayList<>(1);
-                    if (!succeeded.isEmpty())
-                        prompt.add(AndroidUtils.getLocalizedText(getContext(), "mods_add_success", String.join(", ", succeeded)));
-                    if (!failed.isEmpty())
-                        prompt.add(AndroidUtils.getLocalizedText(getContext(), "mods_add_failed", String.join(", ", failed)));
-                    FCLAlertDialog.Builder builder1 = new FCLAlertDialog.Builder(getContext());
-                    builder1.setCancelable(false);
-                    builder1.setAlertLevel(failed.isEmpty() ? FCLAlertDialog.AlertLevel.INFO : FCLAlertDialog.AlertLevel.ALERT);
-                    builder1.setTitle(getContext().getString(R.string.mods_add));
-                    builder1.setMessage(String.join("\n", prompt));
-                    builder1.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
-                    builder1.create().show();
-                    loadMods(modManager);
-                }).start();
-            }
+                }
+            }).withRunAsync(Schedulers.androidUIThread(), () -> {
+                List<String> prompt = new ArrayList<>(1);
+                if (!succeeded.isEmpty())
+                    prompt.add(AndroidUtils.getLocalizedText(getContext(), "mods_add_success", String.join(", ", succeeded)));
+                if (!failed.isEmpty())
+                    prompt.add(AndroidUtils.getLocalizedText(getContext(), "mods_add_failed", String.join(", ", failed)));
+                FCLAlertDialog.Builder builder1 = new FCLAlertDialog.Builder(getContext());
+                builder1.setCancelable(false);
+                builder1.setAlertLevel(failed.isEmpty() ? FCLAlertDialog.AlertLevel.INFO : FCLAlertDialog.AlertLevel.ALERT);
+                builder1.setTitle(getContext().getString(R.string.mods_add));
+                builder1.setMessage(String.join("\n", prompt));
+                builder1.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                builder1.create().show();
+                loadMods(modManager);
+            }).start();
         });
     }
 
@@ -500,14 +508,28 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
 
             // Do we need to search in the background thread?
             for (ModInfoObject item : itemsProperty.get()) {
-                if (predicate.test(item.getModInfo().getFileName())) {
+                if (predicate.test(item.getModInfo().getFileName()) || (item.getRemoteMod() != null && predicate.test(item.getRemoteMod().getTitle()))) {
                     adapter.listProperty().add(item);
                 }
             }
         }
     }
 
+    @SuppressLint("SetTextI18n")
+    private void calculateMod() {
+        try {
+            List<LocalModFile> mods = modManager.getMods();
+            long activeCount = mods.stream().filter(LocalModFile::isActive).count();
+            enabled.setText(getContext().getString(R.string.enabled) + " (" + activeCount + ")");
+            disabled.setText(getContext().getString(R.string.disabled) + " (" + (mods.size() - activeCount) + ")");
+        } catch (Exception ignore) {
+            enabled.setText(getContext().getString(R.string.enabled));
+            disabled.setText(getContext().getString(R.string.disabled));
+        }
+    }
+
     public static class ModInfoObject {
+
         private final BooleanProperty active;
         private final LocalModFile localModFile;
         private final String title;

@@ -30,7 +30,6 @@ import com.tungsten.fclcore.mod.RemoteMod;
 import com.tungsten.fclcore.mod.RemoteModRepository;
 import com.tungsten.fclcore.util.DigestUtils;
 import com.tungsten.fclcore.util.Lang;
-import com.tungsten.fclcore.util.Pair;
 import com.tungsten.fclcore.util.StringUtils;
 import com.tungsten.fclcore.util.gson.JsonUtils;
 import com.tungsten.fclcore.util.io.HttpRequest;
@@ -43,7 +42,13 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -90,8 +95,8 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
         if (StringUtils.isNotBlank(gameVersion)) {
             facets.add(Collections.singletonList("versions:" + gameVersion));
         }
-        if (category != null && StringUtils.isNotBlank(category.getId())) {
-            facets.add(Collections.singletonList("categories:" + category.getId()));
+        if (category != null && StringUtils.isNotBlank(category.id())) {
+            facets.add(Collections.singletonList("categories:" + category.id()));
         }
         Map<String, String> query = mapOf(
                 pair("query", searchFilter),
@@ -167,7 +172,7 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
     public List<Category> getCategoriesImpl() throws IOException {
         List<Category> categories = HttpRequest.GET(PREFIX + "/v2/tag/category").getJson(new TypeToken<List<Category>>() {
         }.getType());
-        return categories.stream().filter(category -> category.getProjectType().equals(projectType)).collect(Collectors.toList());
+        return categories.stream().filter(category -> category.projectType().equals(projectType)).collect(Collectors.toList());
     }
 
     @Override
@@ -175,33 +180,14 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
         return getCategoriesImpl().stream().map(Category::toCategory);
     }
 
-    public static class Category {
-        private final String icon;
-
-        private final String name;
-
-        @SerializedName("project_type")
-        private final String projectType;
-
+    public record Category(String icon, String name,
+                           @SerializedName("project_type") String projectType) {
         public Category() {
             this("", "", "");
         }
 
-        public Category(String icon, String name, String projectType) {
-            this.icon = icon;
-            this.name = name;
-            this.projectType = projectType;
-        }
-
-        public String getIcon() {
-            return icon;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getProjectType() {
+        @Override
+        public String projectType() {
             return projectType;
         }
 
@@ -213,117 +199,33 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
         }
     }
 
-    public static class Project implements RemoteMod.IMod {
-        private final String slug;
+    /**
+     * @param body A long body describing project in detail.
+     */
+    public record Project(String slug, String title, String description, List<String> categories,
+                          String body, @SerializedName("project_type") String projectType,
+                          int downloads, @SerializedName("icon_url") String iconUrl, String id,
+                          String team, Instant published, Instant updated, List<String> versions,
+                          @SerializedName("gallery") List<Screenshot> screenshots) implements RemoteMod.IMod {
 
-        private final String title;
-
-        private final String description;
-
-        private final List<String> categories;
-
-        /**
-         * A long body describing project in detail.
-         */
-        private final String body;
-
-        @SerializedName("project_type")
-        private final String projectType;
-
-        private final int downloads;
-
-        @SerializedName("icon_url")
-        private final String iconUrl;
-
-        private final String id;
-
-        private final String team;
-
-        private final Instant published;
-
-        private final Instant updated;
-
-        private final List<String> versions;
-
-        @SerializedName("gallery")
-        private final List<Screenshot> screenshots;
-
-        public Project(String slug, String title, String description, List<String> categories, String body, String projectType, int downloads, String iconUrl, String id, String team, Instant published, Instant updated, List<String> versions, List<Screenshot> screenshots) {
-            this.slug = slug;
-            this.title = title;
-            this.description = description;
-            this.categories = categories;
-            this.body = body;
-            this.projectType = projectType;
-            this.downloads = downloads;
-            this.iconUrl = iconUrl;
-            this.id = id;
-            this.team = team;
-            this.published = published;
-            this.updated = updated;
-            this.versions = versions;
-            this.screenshots = screenshots;
-        }
-
-        public String getSlug() {
-            return slug;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public List<String> getCategories() {
-            return categories;
-        }
-
-        public String getBody() {
-            return body;
-        }
-
-        public String getProjectType() {
+        @Override
+        public String projectType() {
             return projectType;
         }
 
-        public int getDownloads() {
-            return downloads;
-        }
-
-        public String getIconUrl() {
+        @Override
+        public String iconUrl() {
             return iconUrl;
         }
 
-        public String getId() {
-            return id;
-        }
-
-        public String getTeam() {
-            return team;
-        }
-
-        public Instant getPublished() {
-            return published;
-        }
-
-        public Instant getUpdated() {
-            return updated;
-        }
-
-        public List<String> getVersions() {
-            return versions;
-        }
-
-        public List<Screenshot> getScreenshots() {
+        @Override
+        public List<Screenshot> screenshots() {
             return screenshots;
         }
 
         @Override
         public List<RemoteMod> loadDependencies(RemoteModRepository modRepository) throws IOException {
-            Set<RemoteMod.Dependency> dependencies = modRepository.getRemoteVersionsById(getId())
+            Set<RemoteMod.Dependency> dependencies = modRepository.getRemoteVersionsById(id())
                     .flatMap(version -> version.getDependencies().stream())
                     .collect(Collectors.toSet());
             List<RemoteMod> mods = new ArrayList<>();
@@ -335,7 +237,7 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
 
         @Override
         public Stream<RemoteMod.Version> loadVersions(RemoteModRepository modRepository) throws IOException {
-            return modRepository.getRemoteVersionsById(getId());
+            return modRepository.getRemoteVersionsById(id());
         }
 
         @Override
@@ -357,161 +259,84 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
                     String.format("https://modrinth.com/%s/%s", projectType, id),
                     iconUrl,
                     this,
+                    downloads,
                     id
             );
         }
     }
 
-    public static class Dependency {
-        @SerializedName("version_id")
-        private final String versionId;
+    public record Dependency(@SerializedName("version_id") String versionId,
+                             @SerializedName("project_id") String projectId,
+                             @SerializedName("dependency_type") String dependencyType) {
 
-        @SerializedName("project_id")
-        private final String projectId;
-
-        @SerializedName("dependency_type")
-        private final String dependencyType;
-
-        public Dependency(String versionId, String projectId, String dependencyType) {
-            this.versionId = versionId;
-            this.projectId = projectId;
-            this.dependencyType = dependencyType;
-        }
-
-        public String getVersionId() {
+        @Override
+        public String versionId() {
             return versionId;
         }
 
-        public String getProjectId() {
+        @Override
+        public String projectId() {
             return projectId;
         }
 
-        public String getDependencyType() {
+        @Override
+        public String dependencyType() {
             return dependencyType;
         }
     }
 
-    public static class ProjectVersion implements RemoteMod.IVersion {
-        private static final Map<String, RemoteMod.DependencyType> DEPENDENCY_TYPE = Lang.mapOf(
-                Pair.pair("required", RemoteMod.DependencyType.REQUIRED),
-                Pair.pair("optional", RemoteMod.DependencyType.OPTIONAL),
-                Pair.pair("embedded", RemoteMod.DependencyType.EMBEDDED),
-                Pair.pair("incompatible", RemoteMod.DependencyType.INCOMPATIBLE)
+    public record ProjectVersion(String name,
+                                 @SerializedName("version_number") String versionNumber,
+                                 String changelog, List<Dependency> dependencies,
+                                 @SerializedName("game_versions") List<String> gameVersions,
+                                 @SerializedName("version_type") String versionType,
+                                 List<String> loaders, boolean featured, String id,
+                                 @SerializedName("project_id") String projectId,
+                                 @SerializedName("author_id") String authorId,
+                                 @SerializedName("date_published") Instant datePublished,
+                                 int downloads,
+                                 @SerializedName("changelog_url") String changelogUrl,
+                                 List<ProjectVersionFile> files) implements RemoteMod.IVersion {
+        private static final Map<String, RemoteMod.DependencyType> DEPENDENCY_TYPE = mapOf(
+                pair("required", RemoteMod.DependencyType.REQUIRED),
+                pair("optional", RemoteMod.DependencyType.OPTIONAL),
+                pair("embedded", RemoteMod.DependencyType.EMBEDDED),
+                pair("incompatible", RemoteMod.DependencyType.INCOMPATIBLE)
         );
 
-        private final String name;
-
-        @SerializedName("version_number")
-        private final String versionNumber;
-
-        private final String changelog;
-
-        private final List<Dependency> dependencies;
-
-        @SerializedName("game_versions")
-        private final List<String> gameVersions;
-
-        @SerializedName("version_type")
-        private final String versionType;
-
-        private final List<String> loaders;
-
-        private final boolean featured;
-
-        private final String id;
-
-        @SerializedName("project_id")
-        private final String projectId;
-
-        @SerializedName("author_id")
-        private final String authorId;
-
-        @SerializedName("date_published")
-        private final Instant datePublished;
-
-        private final int downloads;
-
-        @SerializedName("changelog_url")
-        private final String changelogUrl;
-
-        private final List<ProjectVersionFile> files;
-
-        public ProjectVersion(String name, String versionNumber, String changelog, List<Dependency> dependencies, List<String> gameVersions, String versionType, List<String> loaders, boolean featured, String id, String projectId, String authorId, Instant datePublished, int downloads, String changelogUrl, List<ProjectVersionFile> files) {
-            this.name = name;
-            this.versionNumber = versionNumber;
-            this.changelog = changelog;
-            this.dependencies = dependencies;
-            this.gameVersions = gameVersions;
-            this.versionType = versionType;
-            this.loaders = loaders;
-            this.featured = featured;
-            this.id = id;
-            this.projectId = projectId;
-            this.authorId = authorId;
-            this.datePublished = datePublished;
-            this.downloads = downloads;
-            this.changelogUrl = changelogUrl;
-            this.files = files;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getVersionNumber() {
+        @Override
+        public String versionNumber() {
             return versionNumber;
         }
 
-        public String getChangelog() {
-            return changelog;
-        }
-
-        public List<Dependency> getDependencies() {
-            return dependencies;
-        }
-
-        public List<String> getGameVersions() {
+        @Override
+        public List<String> gameVersions() {
             return gameVersions;
         }
 
-        public String getVersionType() {
+        @Override
+        public String versionType() {
             return versionType;
         }
 
-        public List<String> getLoaders() {
-            return loaders;
-        }
-
-        public boolean isFeatured() {
-            return featured;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public String getProjectId() {
+        @Override
+        public String projectId() {
             return projectId;
         }
 
-        public String getAuthorId() {
+        @Override
+        public String authorId() {
             return authorId;
         }
 
-        public Instant getDatePublished() {
+        @Override
+        public Instant datePublished() {
             return datePublished;
         }
 
-        public int getDownloads() {
-            return downloads;
-        }
-
-        public String getChangelogUrl() {
+        @Override
+        public String changelogUrl() {
             return changelogUrl;
-        }
-
-        public List<ProjectVersionFile> getFiles() {
-            return files;
         }
 
         @Override
@@ -573,150 +398,57 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
         }
     }
 
-    public static class ProjectVersionFile {
-        private final Map<String, String> hashes;
-        private final String url;
-        private final String filename;
-        private final boolean primary;
-        private final int size;
-
-        public ProjectVersionFile(Map<String, String> hashes, String url, String filename, boolean primary, int size) {
-            this.hashes = hashes;
-            this.url = url;
-            this.filename = filename;
-            this.primary = primary;
-            this.size = size;
-        }
-
-        public Map<String, String> getHashes() {
-            return hashes;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-
-        public String getFilename() {
-            return filename;
-        }
-
-        public boolean isPrimary() {
-            return primary;
-        }
-
-        public int getSize() {
-            return size;
-        }
+    public record ProjectVersionFile(Map<String, String> hashes, String url, String filename,
+                                     boolean primary, int size) {
 
         public RemoteMod.File toFile() {
             return new RemoteMod.File(hashes, url, filename);
         }
     }
 
-    public static class ProjectSearchResult implements RemoteMod.IMod {
-        private final String slug;
+    public record ProjectSearchResult(String slug, String title, String description,
+                                      List<String> categories,
+                                      @SerializedName("project_type") String projectType,
+                                      int downloads, @SerializedName("icon_url") String iconUrl,
+                                      @SerializedName("project_id") String projectId, String author,
+                                      List<String> versions,
+                                      @SerializedName("date_created") Instant dateCreated,
+                                      @SerializedName("date_modified") Instant dateModified,
+                                      @SerializedName("latest_version") String latestVersion) implements RemoteMod.IMod {
 
-        private final String title;
-
-        private final String description;
-
-        private final List<String> categories;
-
-        @SerializedName("project_type")
-        private final String projectType;
-
-        private final int downloads;
-
-        @SerializedName("icon_url")
-        private final String iconUrl;
-
-        @SerializedName("project_id")
-        private final String projectId;
-
-        private final String author;
-
-        private final List<String> versions;
-
-        @SerializedName("date_created")
-        private final Instant dateCreated;
-
-        @SerializedName("date_modified")
-        private final Instant dateModified;
-
-        @SerializedName("latest_version")
-        private final String latestVersion;
-
-        public ProjectSearchResult(String slug, String title, String description, List<String> categories, String projectType, int downloads, String iconUrl, String projectId, String author, List<String> versions, Instant dateCreated, Instant dateModified, String latestVersion) {
-            this.slug = slug;
-            this.title = title;
-            this.description = description;
-            this.categories = categories;
-            this.projectType = projectType;
-            this.downloads = downloads;
-            this.iconUrl = iconUrl;
-            this.projectId = projectId;
-            this.author = author;
-            this.versions = versions;
-            this.dateCreated = dateCreated;
-            this.dateModified = dateModified;
-            this.latestVersion = latestVersion;
-        }
-
-        public String getSlug() {
-            return slug;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public List<String> getCategories() {
-            return categories;
-        }
-
-        public String getProjectType() {
+        @Override
+        public String projectType() {
             return projectType;
         }
 
-        public int getDownloads() {
-            return downloads;
-        }
-
-        public String getIconUrl() {
+        @Override
+        public String iconUrl() {
             return iconUrl;
         }
 
-        public String getProjectId() {
+        @Override
+        public String projectId() {
             return projectId;
         }
 
-        public String getAuthor() {
-            return author;
-        }
-
-        public List<String> getVersions() {
-            return versions;
-        }
-
-        public Instant getDateCreated() {
+        @Override
+        public Instant dateCreated() {
             return dateCreated;
         }
 
-        public Instant getDateModified() {
+        @Override
+        public Instant dateModified() {
             return dateModified;
         }
 
-        public String getLatestVersion() {
+        @Override
+        public String latestVersion() {
             return latestVersion;
         }
 
         @Override
         public List<RemoteMod> loadDependencies(RemoteModRepository modRepository) throws IOException {
-            Set<RemoteMod.Dependency> dependencies = modRepository.getRemoteVersionsById(getProjectId())
+            Set<RemoteMod.Dependency> dependencies = modRepository.getRemoteVersionsById(projectId())
                     .flatMap(version -> version.getDependencies().stream())
                     .collect(Collectors.toSet());
             List<RemoteMod> mods = new ArrayList<>();
@@ -728,13 +460,13 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
 
         @Override
         public Stream<RemoteMod.Version> loadVersions(RemoteModRepository modRepository) throws IOException {
-            return modRepository.getRemoteVersionsById(getProjectId());
+            return modRepository.getRemoteVersionsById(projectId());
         }
 
         @Override
         public List<RemoteMod.Screenshot> loadScreenshots(RemoteModRepository modRepository) throws IOException {
             //由于直接搜索得到的截图信息只有链接，没有标题、描述等信息，所以需要直接获取这个Mod的详细信息
-            return modRepository.getModById(getProjectId()).getData().loadScreenshots(modRepository);
+            return modRepository.getModById(projectId()).getData().loadScreenshots(modRepository);
         }
 
         public RemoteMod toMod() {
@@ -747,6 +479,7 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
                     String.format("https://modrinth.com/%s/%s", projectType, projectId),
                     iconUrl,
                     this,
+                    downloads,
                     projectId
             );
         }
@@ -790,52 +523,12 @@ public final class ModrinthRemoteModRepository implements RemoteModRepository {
         }
     }
 
-    public static class Screenshot {
-        private final String url;
-        @SerializedName("raw_url")
-        private final String rawUrl;
-        private final boolean featured;
-        private final String title;
-        private final String description;
-        private final Instant created;
-        private final int ordering;
+    public record Screenshot(String url, @SerializedName("raw_url") String rawUrl, boolean featured,
+                             String title, String description, Instant created, int ordering) {
 
-        public Screenshot(String url, String rawUrl, boolean featured, String title, String description, Instant created, int ordering) {
-            this.url = url;
-            this.rawUrl = rawUrl;
-            this.featured = featured;
-            this.title = title;
-            this.description = description;
-            this.created = created;
-            this.ordering = ordering;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-
-        public String getRawUrl() {
+        @Override
+        public String rawUrl() {
             return rawUrl;
-        }
-
-        public boolean isFeatured() {
-            return featured;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public Instant getCreated() {
-            return created;
-        }
-
-        public int getOrdering() {
-            return ordering;
         }
     }
 }

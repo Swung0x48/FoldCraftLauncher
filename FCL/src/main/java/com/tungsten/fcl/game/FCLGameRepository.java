@@ -17,6 +17,7 @@
  */
 package com.tungsten.fcl.game;
 
+import static android.content.Context.MODE_PRIVATE;
 import static com.tungsten.fclcore.util.Logging.LOG;
 
 import android.annotation.SuppressLint;
@@ -32,6 +33,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import com.mio.data.Renderer;
 import com.mio.manager.RendererManager;
+import com.mio.util.LauncherUtilKt;
 import com.tungsten.fcl.FCLApplication;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.setting.Profile;
@@ -349,26 +351,27 @@ public class FCLGameRepository extends DefaultGameRepository {
             vs.setUsesGlobal(true);
     }
 
-    public LaunchOptions getLaunchOptions(String version, JavaVersion javaVersion, File gameDir) {
-        return getLaunchOptions(version, javaVersion, gameDir, null);
+    public LaunchOptions getLaunchOptions(String version, JavaVersion javaVersion, File gameDir, double scaleFactor) {
+        return getLaunchOptions(version, javaVersion, gameDir, scaleFactor, null);
     }
 
-    public LaunchOptions getLaunchOptions(String version, JavaVersion javaVersion, File gameDir, Consumer<LaunchOptions.Builder> injector) {
+    public LaunchOptions getLaunchOptions(String version, JavaVersion javaVersion, File gameDir, double scaleFactor, Consumer<LaunchOptions.Builder> injector) {
         VersionSetting vs = getVersionSetting(version);
         Context context = FCLApplication.getCurrentActivity();
         Renderer renderer = RendererManager.getRenderer(vs.getRenderer());
         boolean traceCapture = context != null && MobileGLTraceCapture.isEnabled(context, renderer);
+        initForceResolution(vs, traceCapture);
         int launchWidth = traceCapture
                 ? MobileGLTraceCapture.FIXTURE_WIDTH
-                : (int) (AndroidUtils.getScreenWidth() * vs.getScaleFactor() / 100.0);
+                : (vs.isForceResolution() ? FCLBridge.FORCE_RESOLUTION_WIDTH : (int) (AndroidUtils.getScreenWidth() * scaleFactor));
         int launchHeight = traceCapture
                 ? MobileGLTraceCapture.FIXTURE_HEIGHT
-                : (int) (AndroidUtils.getScreenHeight() * vs.getScaleFactor() / 100.0);
+                : (vs.isForceResolution() ? FCLBridge.FORCE_RESOLUTION_HEIGHT : (int) (AndroidUtils.getScreenHeight() * scaleFactor));
 
         LaunchOptions.Builder builder = new LaunchOptions.Builder()
                 .setGameDir(gameDir)
                 .setJava(javaVersion)
-                .setVersionType(FCLPath.CONTEXT.getString(R.string.app_name))
+                .setVersionType(LauncherUtilKt.getLauncherName(FCLPath.CONTEXT))
                 .setVersionName(version)
                 .setProfileName(FCLPath.CONTEXT.getString(R.string.app_name))
                 .setGameArguments(StringUtils.tokenize(vs.getMinecraftArgs()))
@@ -388,7 +391,6 @@ public class FCLGameRepository extends DefaultGameRepository {
                 .setPojavBigCore(vs.isPojavBigCore())
                 .setRenderer(renderer)
                 .setDebugLog(vs.isDebugLog());
-        initForceResolution(vs, traceCapture);
 
         File json = getModpackConfiguration(version);
         if (json.exists()) {

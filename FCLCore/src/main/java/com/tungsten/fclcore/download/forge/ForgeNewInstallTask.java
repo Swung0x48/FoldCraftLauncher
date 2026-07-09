@@ -25,9 +25,9 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Process;
 
 import com.tungsten.fcl.FCLApplication;
-import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.download.ArtifactMalformedException;
 import com.tungsten.fclcore.download.DefaultDependencyManager;
 import com.tungsten.fclcore.download.LibraryAnalyzer;
@@ -62,7 +62,14 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.Attributes;
@@ -73,8 +80,8 @@ public class ForgeNewInstallTask extends Task<Version> {
 
     private class ProcessorTask extends Task<Void> {
 
-        private ForgeNewInstallProfile.Processor processor;
-        private Map<String, String> vars;
+        private final ForgeNewInstallProfile.Processor processor;
+        private final Map<String, String> vars;
 
         public ProcessorTask(@NotNull ForgeNewInstallProfile.Processor processor, @NotNull Map<String, String> vars) {
             this.processor = processor;
@@ -180,12 +187,13 @@ public class ForgeNewInstallTask extends Task<Version> {
     }
 
     private void runJVMProcess(ForgeNewInstallProfile.Processor processor, List<String> command, int java) throws Exception {
-        LOG.info("Executing external processor " + processor.getJar().toString() + ", command line: " + new CommandBuilder().addAll(command).toString());
+        LOG.info("Executing external processor " + processor.getJar().toString() + ", command line: " + new CommandBuilder().addAll(command));
         Activity context = FCLApplication.getCurrentActivity();
         int exitCode;
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         boolean listen = true;
         while (listen) {
-            if (((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)).getRunningAppProcesses().size() == 1) {
+            if (activityManager.getRunningAppProcesses().size() == 1) {
                 listen = false;
             }
         }
@@ -195,13 +203,27 @@ public class ForgeNewInstallTask extends Task<Version> {
             server1.stop();
             latch.countDown();
         });
-
-        Intent service = new Intent(context, ProcessService.class);
-        Bundle bundle = new Bundle();
-        bundle.putStringArray("command", command.toArray(new String[0]));
-        bundle.putInt("java", java);
-        service.putExtras(bundle);
-        context.startForegroundService(service);
+        for (int i = 0; i < 5; i++) {
+            try {
+                Intent service = new Intent(context, ProcessService.class);
+                Bundle bundle = new Bundle();
+                bundle.putStringArray("command", command.toArray(new String[0]));
+                bundle.putInt("java", java);
+                service.putExtras(bundle);
+                context.startForegroundService(service);
+            } catch (Throwable e) {
+                activityManager.getRunningAppProcesses().forEach(info -> {
+                    if (info.pid != Process.myPid()) {
+                        Process.killProcess(info.pid);
+                    }
+                });
+                if (i == 4) {
+                    throw e;
+                }
+                continue;
+            }
+            break;
+        }
         server.start();
         latch.await();
         exitCode = Integer.parseInt((String) server.getResult());
@@ -231,7 +253,7 @@ public class ForgeNewInstallTask extends Task<Version> {
     private final String selfVersion;
 
     private Path tempDir;
-    private AtomicInteger processorDoneCount = new AtomicInteger(0);
+    private final AtomicInteger processorDoneCount = new AtomicInteger(0);
 
     public ForgeNewInstallTask(DefaultDependencyManager dependencyManager, Version version, String selfVersion, Path installer) {
         this.dependencyManager = dependencyManager;

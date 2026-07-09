@@ -8,8 +8,10 @@ import android.content.Intent
 import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.Process
 import androidx.core.app.NotificationCompat
+import androidx.core.os.postDelayed
 import com.mio.data.Renderer
 import com.tungsten.fclauncher.FCLConfig
 import com.tungsten.fclauncher.FCLauncher
@@ -78,10 +80,10 @@ class ProcessService : Service() {
             override fun onLog(log: String?) {
                 try {
                     if (firstLog) {
-                        FileUtils.writeText(File(bridge.logPath), log + "\n")
+                        FileUtils.writeText(File(bridge.logPath), log)
                         firstLog = false
                     } else {
-                        FileUtils.writeTextWithAppendMode(File(bridge.logPath), log + "\n")
+                        FileUtils.writeTextWithAppendMode(File(bridge.logPath), log)
                     }
                 } catch (e: IOException) {
                     Logging.LOG.log(Level.WARNING, "Can't log game log to target file", e.message)
@@ -92,8 +94,10 @@ class ProcessService : Service() {
                 sendCode(code)
             }
         }
-        val handler = Handler()
-        handler.postDelayed(Runnable { bridge.execute(null, callback) }, 1000)
+        val handler = Handler(Looper.getMainLooper())
+        handler.postDelayed(1000) {
+            bridge.execute(null, callback)
+        }
     }
 
     private fun sendCode(code: Int) {
@@ -117,7 +121,7 @@ class ProcessService : Service() {
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            "fcl-process",
+            "fcl_process",
             "FCL Process",
             NotificationManager.IMPORTANCE_HIGH
         )
@@ -126,7 +130,7 @@ class ProcessService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        return NotificationCompat.Builder(this, "fcl-process")
+        return NotificationCompat.Builder(this, "fcl_process")
             .setContentTitle(getString(R.string.notification_title))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

@@ -156,6 +156,14 @@ class MenuSetting {
             enableGyroscopeProperty.set(enableGyroscope)
         }
 
+    val invertGyroscopeProperty: BooleanProperty =
+        SimpleBooleanProperty(this, "invertGyroscope", false)
+    var isInvertGyroscope: Boolean
+        get() = invertGyroscopeProperty.get()
+        set(v) {
+            invertGyroscopeProperty.set(v)
+        }
+
     val gyroscopeSensitivityProperty: IntegerProperty =
         SimpleIntegerProperty(this, "gyroscopeSensitivity", 10)
     var gyroscopeSensitivity: Int
@@ -172,12 +180,20 @@ class MenuSetting {
             mouseMoveModeProperty.set(mouseMoveMode)
         }
 
-    val itemBarScaleProperty: IntegerProperty =
-        SimpleIntegerProperty(this, "itemBarScale", 0)
-    var itemBarScale: Int
-        get() = itemBarScaleProperty.get()
-        set(itemBarScale) {
-            itemBarScaleProperty.set(itemBarScale)
+    val itemBarWidthProperty: IntegerProperty =
+        SimpleIntegerProperty(this, "itemBarWidth", 0)
+    var itemBarWidth: Int
+        get() = itemBarWidthProperty.get()
+        set(v) {
+            itemBarWidthProperty.set(v)
+        }
+
+    val itemBarHeightProperty: IntegerProperty =
+        SimpleIntegerProperty(this, "itemBarHeight", 0)
+    var itemBarHeight: Int
+        get() = itemBarHeightProperty.get()
+        set(v) {
+            itemBarHeightProperty.set(v)
         }
 
     val windowScaleProperty: DoubleProperty = SimpleDoubleProperty(this, "windowScale", 1.0)
@@ -218,6 +234,20 @@ class MenuSetting {
             mouseSizeProperty.set(mouseSize)
         }
 
+    val mouseOffsetXProperty: IntegerProperty = SimpleIntegerProperty(this, "mouseOffsetX", 15)
+    var mouseOffsetX: Int
+        get() = mouseOffsetXProperty.get()
+        set(v) {
+            mouseOffsetXProperty.set(v)
+        }
+
+    val mouseOffsetYProperty: IntegerProperty = SimpleIntegerProperty(this, "mouseOffsetY", 15)
+    var mouseOffsetY: Int
+        get() = mouseOffsetYProperty.get()
+        set(v) {
+            mouseOffsetYProperty.set(v)
+        }
+
     val physicalMouseMode: BooleanProperty = SimpleBooleanProperty(this, "physicalMouseMode", false)
     var isPhysicalMouseMode: Boolean
         get() = physicalMouseMode.get()
@@ -251,13 +281,17 @@ class MenuSetting {
         gestureModeProperty.addListener(listener)
         disableLeftTouchProperty.addListener(listener)
         enableGyroscopeProperty.addListener(listener)
+        invertGyroscopeProperty.addListener(listener)
         gyroscopeSensitivityProperty.addListener(listener)
         mouseMoveModeProperty.addListener(listener)
         mouseSensitivityProperty.addListener(listener)
         mouseSensitivityCursorProperty.addListener(listener)
         mouseSizeProperty.addListener(listener)
+        mouseOffsetXProperty.addListener(listener)
+        mouseOffsetYProperty.addListener(listener)
         physicalMouseMode.addListener(listener)
-        itemBarScaleProperty.addListener(listener)
+        itemBarWidthProperty.addListener(listener)
+        itemBarHeightProperty.addListener(listener)
         windowScaleProperty.addListener(listener)
         cursorOffsetProperty.addListener(listener)
         gamepadDeadzoneProperty.addListener(listener)
@@ -288,13 +322,17 @@ class MenuSetting {
                 addProperty("gestureMode", src.gestureMode.id)
                 addProperty("disableLeftTouch", src.isDisableLeftTouch)
                 addProperty("enableGyroscope", src.isEnableGyroscope)
+                addProperty("invertGyroscope", src.isInvertGyroscope)
                 addProperty("gyroscopeSensitivity", src.gyroscopeSensitivity)
                 addProperty("mouseMoveMode", src.mouseMoveMode.id)
                 addProperty("mouseSensitivity", src.mouseSensitivity)
                 addProperty("mouseSensitivityCursor", src.mouseSensitivityCursor)
                 addProperty("mouseSize", src.mouseSize)
+                addProperty("mouseOffsetX", src.mouseOffsetX)
+                addProperty("mouseOffsetY", src.mouseOffsetY)
                 addProperty("physicalMouseMode", src.isPhysicalMouseMode)
-                addProperty("itemBarScale", src.itemBarScale)
+                addProperty("itemBarWidth", src.itemBarWidth)
+                addProperty("itemBarHeight", src.itemBarHeight)
                 addProperty("windowScale", src.windowScale)
                 addProperty("cursorOffset", src.cursorOffset)
                 addProperty("gamepadDeadzone", src.gamepadDeadzone)
@@ -326,13 +364,17 @@ class MenuSetting {
                 ms.gestureMode = GestureMode.getById(json["gestureMode"]?.asInt ?: 0)
                 ms.isDisableLeftTouch = json["disableLeftTouch"]?.asBoolean ?: false
                 ms.isEnableGyroscope = json["enableGyroscope"]?.asBoolean ?: false
+                ms.isInvertGyroscope = json["invertGyroscope"]?.asBoolean ?: false
                 ms.gyroscopeSensitivity = json["gyroscopeSensitivity"]?.asInt ?: 10
                 ms.mouseMoveMode = MouseMoveMode.getById(json["mouseMoveMode"]?.asInt ?: 0)
                 ms.mouseSensitivity = json["mouseSensitivity"]?.asDouble ?: 1.0
                 ms.mouseSensitivityCursor = json["mouseSensitivityCursor"]?.asDouble ?: 2.0
                 ms.mouseSize = json["mouseSize"]?.asInt ?: 15
+                ms.mouseOffsetX = json["mouseOffsetX"]?.asInt ?: 0
+                ms.mouseOffsetY = json["mouseOffsetY"]?.asInt ?: 0
                 ms.isPhysicalMouseMode = json["physicalMouseMode"]?.asBoolean ?: false
-                ms.itemBarScale = json["itemBarScale"]?.asInt ?: 0
+                ms.itemBarWidth = json["itemBarWidth"]?.asInt ?: 0
+                ms.itemBarHeight = json["itemBarHeight"]?.asInt ?: 0
                 ms.windowScale = json["windowScale"]?.asDouble ?: 1.0
                 ms.cursorOffset = json["cursorOffset"]?.asDouble ?: 0.0
                 ms.gamepadDeadzone = json["gamepadDeadzone"]?.asDouble ?: 0.2

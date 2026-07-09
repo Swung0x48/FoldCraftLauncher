@@ -1,9 +1,11 @@
 package com.tungsten.fclauncher;
 
+import static android.content.Context.MODE_PRIVATE;
 import static com.tungsten.fclauncher.utils.Architecture.ARCH_X86;
 import static com.tungsten.fclauncher.utils.Architecture.is64BitsDevice;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -46,6 +48,7 @@ public class FCLauncher {
 
     private static void logStartInfo(FCLConfig config, FCLBridge bridge, String task) {
         printTaskTitle(bridge, "Start " + task);
+        log(bridge, "Renderer: " + bridge.getRenderer());
         log(bridge, "Device: " + getDeviceName());
         log(bridge, "Architecture: " + Architecture.archAsString(Architecture.getDeviceArchitecture()));
         log(bridge, "CPU: " + getSocName());
@@ -203,7 +206,7 @@ public class FCLauncher {
 
                 ((pluginLibPath != null && !pluginLibPath.isEmpty()) ? pluginLibPath + split : "") +
 
-                ((!nativeLibPaths.isEmpty() ? nativeLibPaths + split : "")) +
+                ((!nativeLibPaths.isEmpty() && !nativeLibPaths.equals("null") ? nativeLibPaths + split : "")) +
 
                 FCLPath.MOD_RUNTIME_DIR +
                 split +
@@ -379,9 +382,12 @@ public class FCLauncher {
                 envMap.put("POJAV_RENDERER", "gallium_virgl");
                 envMap.put("OSMESA_NO_FLUSH_FRONTBUFFER", "1");
             } else if (renderer.isEqual(Renderer.ID_ZINK)) {
-                envMap.put("POJAV_RENDERER", "vulkan_zink");
+                envMap.put("POJAV_RENDERER", "opengles3_desktopgl_zink_kopper");
+                envMap.put("LIBGL_ES", "3");
+                envMap.put("POJAVEXEC_EGL", renderer.getEglName());
             } else if (renderer.isEqual(Renderer.ID_ZINK_KOPPER)) {
                 envMap.put("POJAV_RENDERER", "opengles3_desktopgl_zink_kopper");
+                envMap.put("LIBGL_ES", "3");
                 envMap.put("POJAVEXEC_EGL", renderer.getEglName());
             } else if (renderer.isEqual(Renderer.ID_FREEDRENO)) {
                 envMap.put("POJAV_RENDERER", "gallium_freedreno");
@@ -396,16 +402,32 @@ public class FCLauncher {
         if (render) {
             addRendererEnv(config, envMap);
         }
+        addCustomEnv(config, envMap);
         MobileGLTraceCapture.addEnv(config, envMap);
         printTaskTitle(bridge, "Env Map");
         for (String key : envMap.keySet()) {
             log(bridge, "Env: " + key + "=" + envMap.get(key));
             bridge.setenv(key, envMap.get(key));
         }
-        printTaskTitle(bridge, "Env Map");
+    }
+
+    private static void addCustomEnv(FCLConfig config, HashMap<String, String> envMap) {
+        SharedPreferences preferences = config.getContext().getSharedPreferences("launcher", MODE_PRIVATE);
+        String[] env = preferences.getString("env", "").split("\n");
+        for (String e : env) {
+            try {
+                String[] split = e.split("=", 2);
+                if (split.length == 2) {
+                    envMap.put(split[0], split[1]);
+                }
+            } catch (Throwable ignore) {
+            }
+        }
+
     }
 
     private static void setUpJavaRuntime(FCLConfig config, FCLBridge bridge) throws IOException {
+        printTaskTitle(bridge, "DLOPEN");
         String javaLibDir = config.getJavaPath() + getJavaLibDir(config.getJavaPath());
         String jliLibDir = new File(javaLibDir + "/jli/libjli.so").exists() ? javaLibDir + "/jli" : javaLibDir;
         if (isJDK8(config.getJavaPath()))
