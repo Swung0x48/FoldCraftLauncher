@@ -7,3 +7,6 @@
 [submodule "MobileGL"]
 	path = MobileGL
 	url = https://github.com/MobileGL-Dev/MobileGL.git
+[submodule "SimpleFPEWrapper"]
+	path = SimpleFPEWrapper
+	url = https://github.com/MobileGL-Dev/SimpleFPEWrapper.git
