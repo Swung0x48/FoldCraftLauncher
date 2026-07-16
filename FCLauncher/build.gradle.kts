@@ -61,6 +61,6 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(project(":MobileGL"))
-//    implementation(project(":SimpleFPEWrapper"))
+    implementation(project(":SimpleFPEWrapper"))
     implementation(project(":MobileGlues"))
 }
