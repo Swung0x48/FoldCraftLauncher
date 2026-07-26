@@ -179,6 +179,12 @@ void gl_make_current(gl_render_window_t* bundle) {
     }
     if(eglMakeCurrent_p(g_EglDisplay, bundle->surface, bundle->surface, bundle->context)) {
         currentBundle = bundle;
+        if(hasSetMainWindow) {
+            // LWJGL starts with VSync disabled. EGL starts at swap interval 1,
+            // so establish the matching native default before the game has a
+            // chance to override it through Display.setVSyncEnabled().
+            eglSwapInterval_p(g_EglDisplay, 0);
+        }
     }else {
         if(hasSetMainWindow) {
             pojav_environ->mainWindowBundle->newNativeSurface = NULL;
