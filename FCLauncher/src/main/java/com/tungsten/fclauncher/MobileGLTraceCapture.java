@@ -58,6 +58,11 @@ public final class MobileGLTraceCapture {
         }
         activeWrapper = wrapper;
         activeRealGl = realGlPath(config.getContext(), renderer);
+        if (renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER)) {
+            // Keep SimpleFPEWrapper as the application-facing GL library. The trace layer belongs
+            // between SFPEW and MobileGL so it records the programmable calls produced by SFPEW.
+            return renderer.getGLPath();
+        }
         return wrapper.getAbsolutePath();
     }
 
@@ -82,6 +87,9 @@ public final class MobileGLTraceCapture {
         envMap.put("FLUSH_EVERY_MS", "1000");
         envMap.put("LIBEGL_NAME", wrapper.getAbsolutePath());
         envMap.put("POJAVEXEC_EGL", wrapper.getAbsolutePath());
+        if (renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER)) {
+            envMap.put("SFPEW_EGL", wrapper.getAbsolutePath());
+        }
         envMap.put("MOBILEGL_TRACE_CAPTURE_DIR", session.getAbsolutePath());
         envMap.put("MOBILEGL_TRACE_CAPTURE_FRAME_FILE", new File(session, "capture-result.json").getAbsolutePath());
         envMap.put("MOBILEGL_TRACE_CAPTURE_REQUEST_FILE", new File(sharedRoot(), "capture-once.request").getAbsolutePath());
@@ -132,7 +140,9 @@ public final class MobileGLTraceCapture {
     }
 
     private static String realGlPath(Context context, Renderer renderer) {
-        String path = renderer.getGLPath();
+        String path = renderer.isEqual(Renderer.ID_SIMPLEFPEWRAPPER)
+                ? renderer.getEglName()
+                : renderer.getGLPath();
         if (path.startsWith("/") || path.contains("/")) {
             return path;
         }
