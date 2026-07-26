@@ -53,6 +53,8 @@ void bigcore_set_affinity();
 #define RENDERER_VULKAN 4
 
 static atomic_uint fps = 0;
+typedef void (*renderer_flush_callback_t)(void);
+static _Atomic(renderer_flush_callback_t) renderer_flush_callback = NULL;
 
 EXTERNAL_API void pojavTerminate() {
     printf("EGLBridge: Terminating\n");
@@ -182,6 +184,9 @@ EXTERNAL_API void pojavSetWindowHint(int hint, int value) {
 }
 
 EXTERNAL_API void pojavSwapBuffers() {
+    renderer_flush_callback_t flush_callback =
+        atomic_load_explicit(&renderer_flush_callback, memory_order_acquire);
+    if (flush_callback != NULL) flush_callback();
     atomic_fetch_add(&fps, 1);
     if (pojav_environ->config_renderer == RENDERER_VIRGL)
         virglSwapBuffers();
@@ -241,4 +246,8 @@ Java_org_lwjgl_glfw_CallbackBridge_getFps(JNIEnv *env, jclass clazz) {
 EXTERNAL_API JNIEXPORT jlong JNICALL
 Java_org_lwjgl_vulkan_VK_getFpsAddress(ABI_COMPAT JNIEnv *env, ABI_COMPAT jclass thiz) {
     return (jlong) &fps;
+}
+
+EXTERNAL_API void pojavSetRendererFlushCallback(renderer_flush_callback_t callback) {
+    atomic_store_explicit(&renderer_flush_callback, callback, memory_order_release);
 }
