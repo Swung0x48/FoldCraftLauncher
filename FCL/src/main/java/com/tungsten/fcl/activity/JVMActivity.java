@@ -163,7 +163,13 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
             return;
         }
         fclBridge.setSurfaceHolder(holder);
-        resizeSurface(width, height);
+        // Scale from the VIEW size, never from the reported surface size. setFixedSize()
+        // drives this callback, and the width/height it reports are the buffer dimensions we
+        // just asked for - already scaled. Feeding those back through getSurfaceSize()
+        // multiplies by scaleFactor again on every callback, so any scale below 1.0 collapses
+        // the surface geometrically (0.4 measured: 3044 -> 1217 -> 486 -> ... -> 1) and the
+        // screen flickers through garbage sizes. The view size is the fixed point.
+        resizeSurface(surfaceView.getWidth(), surfaceView.getHeight());
     }
 
     @Override
