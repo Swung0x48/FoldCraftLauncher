@@ -10,4 +10,4 @@
 [submodule "SimpleFPEWrapper"]
 	path = SimpleFPEWrapper
 	url = https://github.com/MobileGL-Dev/SimpleFPEWrapper.git
-	branch = codex/android-fcl
+	branch = main

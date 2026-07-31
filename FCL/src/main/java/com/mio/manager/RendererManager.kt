@@ -18,7 +18,8 @@ object RendererManager {
     lateinit var RENDERER_MOBILEGLUES: Renderer
     lateinit var RENDERER_MOBILEGL_ESPRYT: Renderer
     lateinit var RENDERER_MOBILEGL_MAGMA: Renderer
-    lateinit var RENDERER_SIMPLEFPEWRAPPER: Renderer
+    lateinit var RENDERER_SIMPLEFPEWRAPPER_ESPRYT: Renderer
+    lateinit var RENDERER_SIMPLEFPEWRAPPER_MAGMA: Renderer
     lateinit var RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES: Renderer
     private var isInit = false
 
@@ -165,15 +166,28 @@ object RendererManager {
             ""
         )
 
-        RENDERER_SIMPLEFPEWRAPPER = Renderer(
-            "SimpleFPEWrapper",
-            context.getString(R.string.settings_fcl_renderer_simplefpewrapper),
+        RENDERER_SIMPLEFPEWRAPPER_ESPRYT = Renderer(
+            "SFPEWMobileGLEspryt",
+            context.getString(R.string.settings_fcl_renderer_sfpew_mobilegl_espryt),
             "libSimpleFPEWrapper.so",
             "libMobileGL.so",
             "",
             null,
             null,
-            Renderer.ID_SIMPLEFPEWRAPPER,
+            Renderer.ID_SIMPLEFPEWRAPPER_ESPRYT,
+            "",
+            ""
+        )
+
+        RENDERER_SIMPLEFPEWRAPPER_MAGMA = Renderer(
+            "SFPEWMobileGLMagma",
+            context.getString(R.string.settings_fcl_renderer_sfpew_mobilegl_magma),
+            "libSimpleFPEWrapper.so",
+            "libMobileGL.so",
+            "",
+            null,
+            null,
+            Renderer.ID_SIMPLEFPEWRAPPER_MAGMA,
             "",
             ""
         )
@@ -207,7 +221,8 @@ object RendererManager {
         rendererList.add(RENDERER_MOBILEGLUES)
         rendererList.add(RENDERER_MOBILEGL_ESPRYT)
         rendererList.add(RENDERER_MOBILEGL_MAGMA)
-        rendererList.add(RENDERER_SIMPLEFPEWRAPPER)
+        rendererList.add(RENDERER_SIMPLEFPEWRAPPER_ESPRYT)
+        rendererList.add(RENDERER_SIMPLEFPEWRAPPER_MAGMA)
         rendererList.add(RENDERER_SIMPLEFPEWRAPPER_MOBILEGLUES)
         rendererList.addAll(RendererPlugin.rendererList)
     }

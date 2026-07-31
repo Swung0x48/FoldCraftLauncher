@@ -887,7 +887,8 @@
     <string name="settings_fcl_renderer_mobileglues" translatable="false">MobileGlues (Dev)</string>
     <string name="settings_fcl_renderer_mobilegl_espryt" translatable="false">MobileGL (Dev, Espryt)</string>
     <string name="settings_fcl_renderer_mobilegl_magma" translatable="false">MobileGL (Dev, Magma)</string>
-    <string name="settings_fcl_renderer_simplefpewrapper" translatable="false">SimpleFPEWrapper -> MobileGL (Dev)</string>
+    <string name="settings_fcl_renderer_sfpew_mobilegl_espryt" translatable="false">SFPEW -> MobileGL Espryt (Dev)</string>
+    <string name="settings_fcl_renderer_sfpew_mobilegl_magma" translatable="false">SFPEW -> MobileGL Magma (Dev)</string>
     <string name="settings_fcl_renderer_simplefpewrapper_mobileglues" translatable="false">SimpleFPEWrapper -> MobileGlues (Dev)</string>
 
     <string name="settings_fcl_driver">Vulkan Driver</string>
