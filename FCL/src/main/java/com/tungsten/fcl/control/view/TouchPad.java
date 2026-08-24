@@ -162,7 +162,8 @@ public class TouchPad extends View {
         if (gameMenu.getTouchController() != null) {
             gameMenu.getTouchController().handleTouchEvent(event);
         }
-        if (gameMenu.getCursorMode() == FCLBridge.CursorEnabled) {
+        int cursorMode = gameMenu.getInput().syncCursorModeForInput();
+        if (cursorMode == FCLBridge.CursorEnabled) {
             if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
                 if (event.getAction() == MotionEvent.ACTION_MOVE) {
                     gameMenu.getInput().setPointer((int) event.getRawX(), (int) event.getRawY());

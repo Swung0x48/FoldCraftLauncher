@@ -42,6 +42,7 @@ import com.tungsten.fcl.FCLApplication;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.JVMActivity;
 import com.tungsten.fcl.activity.MainActivity;
+import com.tungsten.fcl.activity.SDLJVMActivity;
 import com.tungsten.fcl.control.MenuType;
 import com.tungsten.fcl.setting.GameOption;
 import com.tungsten.fcl.setting.MenuSetting;
@@ -80,6 +81,7 @@ import com.tungsten.fclcore.task.TaskExecutor;
 import com.tungsten.fclcore.task.TaskListener;
 import com.tungsten.fclcore.util.Lang;
 import com.tungsten.fclcore.util.LibFilter;
+import com.tungsten.fclcore.util.SDLVersionSupport;
 import com.tungsten.fclcore.util.StringUtils;
 import com.tungsten.fclcore.util.io.FileUtils;
 import com.tungsten.fclcore.util.io.ResponseCodeException;
@@ -250,18 +252,25 @@ public final class LauncherHelper {
                             gameOption.save();
                             return Task.completed(fclBridge);
                         }).thenAcceptAsync(fclBridge -> Schedulers.androidUIThread().execute(() -> {
-                            CallbackBridge.nativeSetUseInputStackQueue(version.get().getArguments().isPresent());
-                            Intent intent = new Intent(context, JVMActivity.class);
+                            boolean useSDL3 = SDLVersionSupport.usesSDL3(version.get());
+                            Intent intent = new Intent(context, useSDL3 ? SDLJVMActivity.class : JVMActivity.class);
                             fclBridge.setScaleFactor(scaleFactor);
                             fclBridge.setController(repository.getVersionSetting(selectedVersion).getController());
                             fclBridge.setGameDir(repository.getRunDirectory(selectedVersion).getAbsolutePath());
                             fclBridge.setJava(Integer.toString(javaVersionRef.get().getVersion()));
-                            JVMActivity.setFCLBridge(fclBridge, MenuType.GAME, repository.getVersionSetting(selectedVersion).isUseTextureView());
+                            if (useSDL3) {
+                                // SDL's Android backend owns the SurfaceView and its lifecycle.
+                                SDLJVMActivity.setFCLBridge(fclBridge, MenuType.GAME);
+                            } else {
+                                CallbackBridge.nativeSetUseInputStackQueue(version.get().getArguments().isPresent());
+                                JVMActivity.setFCLBridge(fclBridge, MenuType.GAME,
+                                        repository.getVersionSetting(selectedVersion).isUseTextureView());
+                            }
                             Bundle bundle = new Bundle();
                             bundle.putString("controller", repository.getVersionSetting(selectedVersion).getController());
                             bundle.putString("TERRACOTTA_PLAYER", account.getUsername());
                             intent.putExtras(bundle);
-                            LOG.log(Level.INFO, "Start JVMActivity!");
+                            LOG.log(Level.INFO, useSDL3 ? "Start SDLJVMActivity!" : "Start JVMActivity!");
                             context.startActivity(intent);
                             if (MainActivity.getInstance().shouldPlayVideo()) {
                                 MainActivity.getInstance().setMediaPlayer(null);

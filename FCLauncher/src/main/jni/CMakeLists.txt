@@ -6,6 +6,22 @@ project("fcl")
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 11)
 
+# Build the unmodified upstream SDL Android backend as a shared library.  FCL
+# supplies its Java entry point separately, so SDL's tests, static library,
+# install targets, and standalone Android jar are not needed here.
+set(SDL_SHARED ON CACHE BOOL "" FORCE)
+set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+set(SDL_UNINSTALL OFF CACHE BOOL "" FORCE)
+set(SDL_ANDROID_JAR OFF CACHE BOOL "" FORCE)
+add_subdirectory(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../SDL3
+    ${CMAKE_CURRENT_BINARY_DIR}/sdl3
+)
+
 # 查找ByteHook库
 find_package(bytehook REQUIRED CONFIG)
 
@@ -26,6 +42,7 @@ add_library(
     fcl/fcl_bridge.c
     fcl/fcl_event.c
     fcl/fcl_loader.c
+    fcl/fcl_sdl_text.c
 )
 
 target_include_directories(
@@ -42,6 +59,40 @@ target_link_libraries(
     log
     dl
     android
+)
+
+# Keep the SDL implementation upstream while providing the one small bridge
+# which must call SDL_SendKeyboardText from inside libSDL3.so (the symbol is
+# hidden). The sender resolves libfcl at runtime, avoiding a CMake target
+# dependency that would leak into SDL's export set.
+target_sources(
+    SDL3-shared
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/fcl/fcl_sdl_text_sender.c
+)
+
+target_include_directories(
+    SDL3-shared
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/fcl/include
+)
+
+# LWJGL's SDL function provider uses this FCL-owned forwarding DSO. Minecraft's
+# RenderPearl backend keeps a hidden OpenGL utility window alive while creating
+# its visible window, whereas upstream SDL Android intentionally supports one
+# SDL_Window. The shim reuses that one upstream window without changing SDL.
+add_library(
+    fclsdlshim
+    SHARED
+    fcl/fcl_sdl_window_shim.c
+)
+
+target_link_libraries(
+    fclsdlshim
+    PRIVATE
+    SDL3-shared
+    log
+    dl
 )
 
 # 模块：driver_helper

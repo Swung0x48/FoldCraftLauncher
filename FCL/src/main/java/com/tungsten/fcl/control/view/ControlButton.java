@@ -350,8 +350,11 @@ public class ControlButton extends AppCompatButton implements CustomView {
                     setPressedStyle();
                     downX = event.getX();
                     downY = event.getY();
-                    initialX = menu.getCursorMode() == FCLBridge.CursorEnabled ? menu.getCursorX() : menu.getPointerX();
-                    initialY = menu.getCursorMode() == FCLBridge.CursorEnabled ? menu.getCursorY() : menu.getPointerY();
+                    int cursorMode = getData().getEvent().isPointerFollow()
+                            ? menu.getInput().syncCursorModeForInput()
+                            : menu.getCursorMode();
+                    initialX = cursorMode == FCLBridge.CursorEnabled ? menu.getCursorX() : menu.getPointerX();
+                    initialY = cursorMode == FCLBridge.CursorEnabled ? menu.getCursorY() : menu.getPointerY();
                     positionX = getX();
                     positionY = getY();
                     downTime = System.currentTimeMillis();
@@ -508,7 +511,8 @@ public class ControlButton extends AppCompatButton implements CustomView {
         if (getData().getEvent().isPointerFollow()) {
             int deltaX = (int) ((event.getX() - downX) * menu.getMenuSetting().getMouseSensitivity());
             int deltaY = (int) ((event.getY() - downY) * menu.getMenuSetting().getMouseSensitivity());
-            if (menu.getCursorMode() == FCLBridge.CursorEnabled) {
+            int cursorMode = menu.getInput().syncCursorModeForInput();
+            if (cursorMode == FCLBridge.CursorEnabled) {
                 int targetX = Math.max(0, Math.min(screenWidth, initialX + deltaX));
                 int targetY = Math.max(0, Math.min(screenHeight, initialY + deltaY));
                 menu.getInput().setPointerId(getData().getId());
@@ -683,22 +687,32 @@ public class ControlButton extends AppCompatButton implements CustomView {
         if (event.isQuickInput()) {
             menu.openQuickInput();
         }
-        if (StringUtils.isNotBlank(event.getOutputText())) {
-            if (menu.getCursorMode() == FCLBridge.CursorEnabled) {
-                for (int i = 0; i < event.getOutputText().length(); i++) {
-                    menu.getInput().sendChar(event.getOutputText().charAt(i));
+        String outputText = event.getOutputText();
+        if (StringUtils.isNotBlank(outputText)) {
+            FCLBridge bridge = menu.getBridge();
+            boolean usesSDL3 = bridge != null && bridge.isUseSDL3();
+            int cursorMode = usesSDL3
+                    ? menu.getInput().syncCursorModeForInput()
+                    : menu.getCursorMode();
+            if (cursorMode == FCLBridge.CursorEnabled) {
+                if (usesSDL3) {
+                    menu.getInput().sendTextWhenReady(outputText);
+                } else {
+                    menu.getInput().sendText(outputText);
                 }
             } else {
                 GameOption gameOption = menu.getGameOption();
                 menu.getInput().sendBoundKeyEvent(gameOption, BINDING_CHAT, FCLKeycodes.KEY_T, true);
                 menu.getInput().sendBoundKeyEvent(gameOption, BINDING_CHAT, FCLKeycodes.KEY_T, false);
-                new Handler().postDelayed(() -> {
-                    for (int i = 0; i < event.getOutputText().length(); i++) {
-                        menu.getInput().sendChar(event.getOutputText().charAt(i));
-                    }
-                    menu.getInput().sendKeyEvent(FCLKeycodes.KEY_ENTER, true);
-                    menu.getInput().sendKeyEvent(FCLKeycodes.KEY_ENTER, false);
-                }, 150);
+                if (usesSDL3) {
+                    menu.getInput().sendTextWhenReady(outputText, true);
+                } else {
+                    handler.postDelayed(() -> {
+                        menu.getInput().sendText(outputText);
+                        menu.getInput().sendKeyEvent(FCLKeycodes.KEY_ENTER, true);
+                        menu.getInput().sendKeyEvent(FCLKeycodes.KEY_ENTER, false);
+                    }, 150);
+                }
             }
         }
         for (String id : event.bindViewGroupList()) {

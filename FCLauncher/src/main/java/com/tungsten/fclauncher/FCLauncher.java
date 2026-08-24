@@ -36,6 +36,13 @@ import java.util.Map;
 
 public class FCLauncher {
 
+    private static final String JAVA_LIBRARY_PATH_PROPERTY = "-Djava.library.path=";
+    private static final String LWJGL_LIBRARY_PATH_PROPERTY = "-Dorg.lwjgl.librarypath=";
+    private static final String LWJGL_LIBRARY_NAME_PROPERTY = "-Dorg.lwjgl.libname=";
+    private static final String LWJGL_SDL_LIBRARY_NAME_PROPERTY = "-Dorg.lwjgl.sdl.libname=";
+    private static final String LWJGL_OPENGL_LIBRARY_PROPERTY = "-Dorg.lwjgl.opengl.libname=";
+    private static final String MOBILEGLUES_LIBRARY_NAME = "libmobileglues.so";
+    private static final String SDL3_LWJGL_SHIM_LIBRARY_NAME = "libfclsdlshim.so";
     private static int FCL_VERSION_CODE = -1;
 
     private static void log(FCLBridge bridge, String log) {
@@ -218,16 +225,71 @@ public class FCLauncher {
         ArrayList<String> argList = new ArrayList<>(Arrays.asList(config.getArgs()));
         argList.add(0, config.getJavaPath() + "/bin/java");
         String[] args = new String[argList.size()];
+        String libraryPath = getLibraryPath(config.getContext(), config.getJavaPath(), config.getRenderer().getPath());
+        String lwjglNativeDir = config.isUseSDL3() ? getSDL3LWJGLNativeDir(config) : null;
+        if (lwjglNativeDir != null) {
+            libraryPath = prependLibraryPath(lwjglNativeDir, libraryPath);
+        }
+        boolean forceMobileGluesPath = usesDirectMobileGluesForSDL3(config);
+        String mobileGluesPath = forceMobileGluesPath ? getBundledMobileGluesPath(config.getContext()) : null;
         for (int i = 0; i < argList.size(); i++) {
             String a = argList.get(i);
-            String libraryPath = getLibraryPath(config.getContext(), config.getJavaPath(), config.getRenderer().getPath());
-            if (argList.get(i).contains("-Djava.library.path")) {
-                a = "-Djava.library.path=${natives_directory}";
+            if (a.startsWith(JAVA_LIBRARY_PATH_PROPERTY)) {
+                a = JAVA_LIBRARY_PATH_PROPERTY + "${natives_directory}";
             }
             a = a.replace("${natives_directory}", libraryPath);
-            args[i] = config.getRenderer() == null ? a : a.replace("${gl_lib_name}", MobileGLTraceCapture.resolveGlPath(config));
+            if (lwjglNativeDir != null) {
+                if (a.startsWith(LWJGL_LIBRARY_PATH_PROPERTY)) {
+                    String configuredPath = a.substring(LWJGL_LIBRARY_PATH_PROPERTY.length());
+                    a = LWJGL_LIBRARY_PATH_PROPERTY + prependLibraryPath(lwjglNativeDir, configuredPath);
+                } else if (a.startsWith(LWJGL_LIBRARY_NAME_PROPERTY)) {
+                    a = LWJGL_LIBRARY_NAME_PROPERTY + new File(lwjglNativeDir, "liblwjgl.so").getAbsolutePath();
+                } else if (a.startsWith(LWJGL_SDL_LIBRARY_NAME_PROPERTY)) {
+                    a = LWJGL_SDL_LIBRARY_NAME_PROPERTY
+                            + new File(config.getContext().getApplicationInfo().nativeLibraryDir,
+                            SDL3_LWJGL_SHIM_LIBRARY_NAME).getAbsolutePath();
+                }
+            }
+            if (forceMobileGluesPath && a.startsWith(LWJGL_OPENGL_LIBRARY_PROPERTY)) {
+                a = LWJGL_OPENGL_LIBRARY_PROPERTY + mobileGluesPath;
+            }
+            args[i] = config.getRenderer() == null ? a : a.replace("${gl_lib_name}", resolveGlPath(config));
         }
         return args;
+    }
+
+    private static String prependLibraryPath(String first, String paths) {
+        if (paths == null || paths.isEmpty()) {
+            return first;
+        }
+        if (paths.equals(first) || paths.startsWith(first + File.pathSeparator)) {
+            return paths;
+        }
+        return first + File.pathSeparator + paths;
+    }
+
+    private static String getSDL3LWJGLNativeDir(FCLConfig config) {
+        String lwjglVersion = config.getSDL3LwjglVersion();
+        if (lwjglVersion == null) {
+            throw new IllegalStateException("SDL3 launch is missing its LWJGL runtime version");
+        }
+        return FCLPath.getSDL3LWJGLNativeDir(lwjglVersion);
+    }
+
+    private static boolean usesDirectMobileGluesForSDL3(FCLConfig config) {
+        Renderer renderer = config.getRenderer();
+        return config.isUseSDL3() && renderer != null && renderer.isEqual(Renderer.ID_MOBILEGLUES);
+    }
+
+    private static String getBundledMobileGluesPath(Context context) {
+        return new File(context.getApplicationInfo().nativeLibraryDir, MOBILEGLUES_LIBRARY_NAME).getAbsolutePath();
+    }
+
+    private static String resolveGlPath(FCLConfig config) {
+        if (usesDirectMobileGluesForSDL3(config)) {
+            return getBundledMobileGluesPath(config.getContext());
+        }
+        return MobileGLTraceCapture.resolveGlPath(config);
     }
 
     private static void addCommonEnv(FCLConfig config, HashMap<String, String> envMap) {
@@ -297,6 +359,11 @@ public class FCLauncher {
             envMap.put("LIBEGL_NAME", renderer.getEglName());
             envMap.put("POJAV_RENDERER", "opengles3");
             envMap.put("POJAVEXEC_EGL", renderer.getEglName());
+            if (usesDirectMobileGluesForSDL3(config)) {
+                String mobileGluesPath = getBundledMobileGluesPath(config.getContext());
+                envMap.put("SDL_OPENGL_LIBRARY", mobileGluesPath);
+                envMap.put("SDL_EGL_LIBRARY", mobileGluesPath);
+            }
             if (renderer.isEqual(Renderer.ID_MOBILEGL)) {
                 envMap.put("MOBILEGL_BACKEND_TYPE", "DirectGLES");
             } else if (renderer.isEqual(Renderer.ID_MOBILEGL_MAGMA)) {
@@ -407,10 +474,26 @@ public class FCLauncher {
         }
         addCustomEnv(config, envMap);
         MobileGLTraceCapture.addEnv(config, envMap);
+        lockSDL3RuntimeEnv(config, envMap);
         printTaskTitle(bridge, "Env Map");
         for (String key : envMap.keySet()) {
             log(bridge, "Env: " + key + "=" + envMap.get(key));
             bridge.setenv(key, envMap.get(key));
+        }
+    }
+
+    private static void lockSDL3RuntimeEnv(FCLConfig config, HashMap<String, String> envMap) {
+        if (!config.isUseSDL3()) {
+            return;
+        }
+
+        String lwjglNativeDir = getSDL3LWJGLNativeDir(config);
+        envMap.put("LD_LIBRARY_PATH", prependLibraryPath(lwjglNativeDir, envMap.get("LD_LIBRARY_PATH")));
+
+        if (usesDirectMobileGluesForSDL3(config)) {
+            String mobileGluesPath = getBundledMobileGluesPath(config.getContext());
+            envMap.put("SDL_OPENGL_LIBRARY", mobileGluesPath);
+            envMap.put("SDL_EGL_LIBRARY", mobileGluesPath);
         }
     }
 
@@ -502,13 +585,15 @@ public class FCLauncher {
         String[] args = rebaseArgs(config);
         boolean javaArgs = true;
         int mainClass = 0;
+        int mainClassArgumentCount = config.isUseSDL3() ? 1 : 2;
+        String launchEntryPoint = config.isUseSDL3() ? config.getMainClass() : "mio.Wrapper";
         boolean isToken = false;
         for (String arg : args) {
             if (javaArgs)
-                javaArgs = !arg.equals("mio.Wrapper");
+                javaArgs = !arg.equals(launchEntryPoint);
             String title = task.equals("Minecraft") ? javaArgs ? "Java" : task : task;
             String prefix = title + " argument: ";
-            if (task.equals("Minecraft") && !javaArgs && mainClass < 2) {
+            if (task.equals("Minecraft") && !javaArgs && mainClass < mainClassArgumentCount) {
                 mainClass++;
                 prefix = "MainClass: ";
             }
@@ -521,7 +606,11 @@ public class FCLauncher {
                 isToken = true;
             log(bridge, prefix + arg);
         }
-        bridge.setLdLibraryPath(getLibraryPath(config.getContext(), config.getJavaPath(), config.getRenderer().getPath()));
+        String libraryPath = getLibraryPath(config.getContext(), config.getJavaPath(), config.getRenderer().getPath());
+        if (config.isUseSDL3()) {
+            libraryPath = prependLibraryPath(getSDL3LWJGLNativeDir(config), libraryPath);
+        }
+        bridge.setLdLibraryPath(libraryPath);
         bridge.setupExitTrap(bridge);
         log(bridge, "Hook success");
         int exitCode = VMLauncher.launchJVM(args);

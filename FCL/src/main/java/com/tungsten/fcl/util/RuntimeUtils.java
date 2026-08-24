@@ -33,10 +33,25 @@ public class RuntimeUtils {
             }
         }
         if (!targetFile.exists()) return false;
-        long version = Long.parseLong(IOUtils.readFullyAsString(RuntimeUtils.class.getResourceAsStream(srcDir + "/version")));
-        String installedVersion = FileUtils.readText(targetFile);
+        long version = Long.parseLong(IOUtils.readFullyAsString(RuntimeUtils.class.getResourceAsStream(srcDir + "/version")).trim());
+        String installedVersion = FileUtils.readText(targetFile).trim();
         if (installedVersion.isEmpty()) return false;
         return targetFile.exists() && Long.parseLong(installedVersion) == version;
+    }
+
+    public static boolean isLwjglLatest(String targetDir, String srcDir) throws IOException {
+        if (!isLatest(targetDir, srcDir)) {
+            return false;
+        }
+        for (String lwjglVersion : FCLPath.getBundledSDL3LWJGLVersions()) {
+            File nativeDir = new File(FCLPath.getSDL3LWJGLNativeDir(lwjglVersion));
+            for (String library : FCLPath.getRequiredSDL3LWJGLLibraries()) {
+                if (!new File(nativeDir, library).isFile()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")

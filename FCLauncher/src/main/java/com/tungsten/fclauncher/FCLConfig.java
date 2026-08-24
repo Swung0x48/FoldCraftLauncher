@@ -64,6 +64,8 @@ public class FCLConfig implements Serializable {
 
     private boolean useVKDriverSystem = false;
     private boolean pojavBigCore = false;
+    private String sdl3LwjglVersion = null;
+    private String mainClass = null;
     private InstalledModLoaders installedModLoaders = null;
 
     public FCLConfig(Context context, String logDir, String javaPath, String workingDir, Renderer renderer, String[] args) {
@@ -113,6 +115,26 @@ public class FCLConfig implements Serializable {
 
     public boolean isPojavBigCore() {
         return pojavBigCore;
+    }
+
+    public boolean isUseSDL3() {
+        return sdl3LwjglVersion != null;
+    }
+
+    public void setSDL3LwjglVersion(String sdl3LwjglVersion) {
+        this.sdl3LwjglVersion = sdl3LwjglVersion;
+    }
+
+    public String getSDL3LwjglVersion() {
+        return sdl3LwjglVersion;
+    }
+
+    public void setMainClass(String mainClass) {
+        this.mainClass = mainClass;
+    }
+
+    public String getMainClass() {
+        return mainClass;
     }
 
     public void setInstalledModLoaders(InstalledModLoaders installedModLoaders) {

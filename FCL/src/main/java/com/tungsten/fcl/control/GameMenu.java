@@ -102,7 +102,7 @@ import kotlin.Unit;
 public class GameMenu implements MenuCallback, View.OnClickListener {
 
     private boolean simulated;
-    private FCLActivity activity;
+    private Activity activity;
     @Nullable
     private FCLBridge fclBridge;
     private FCLInput fclInput;
@@ -162,7 +162,7 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         return menuView;
     }
 
-    public FCLActivity getActivity() {
+    public Activity getActivity() {
         return activity;
     }
 
@@ -624,7 +624,7 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
     }
 
     @Override
-    public void setup(FCLActivity activity, FCLBridge fclBridge) {
+    public void setup(Activity activity, FCLBridge fclBridge) {
         this.activity = activity;
         this.fclBridge = fclBridge;
         this.simulated = fclBridge == null;
@@ -740,7 +740,8 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
 
         touchPad.setOnGenericMotionListener((view, motionEvent) -> {
             if (motionEvent.isFromSource(InputDevice.SOURCE_MOUSE) && menuSetting.isPhysicalMouseMode()) {
-                if (getCursorMode() == FCLBridge.CursorEnabled && motionEvent.getAction() == MotionEvent.ACTION_HOVER_MOVE) {
+                if (motionEvent.getAction() == MotionEvent.ACTION_HOVER_MOVE
+                        && getInput().syncCursorModeForInput() == FCLBridge.CursorEnabled) {
                     getInput().setPointer((int) motionEvent.getRawX(), (int) motionEvent.getRawY());
                     return true;
                 }
@@ -753,7 +754,7 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         }
     }
 
-    private void initCursorView(FCLActivity activity) {
+    private void initCursorView(Activity activity) {
         ViewGroup.LayoutParams layoutParams = cursorView.getLayoutParams();
         layoutParams.width = ConvertUtils.dip2px(activity, menuSetting.getMouseSizeProperty().get());
         layoutParams.height = ConvertUtils.dip2px(activity, menuSetting.getMouseSizeProperty().get());
@@ -880,6 +881,11 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
             JVMCrashActivity.startCrashActivity(true, activity, exitCode, fclBridge.getLogPath());
             Logging.LOG.log(Level.INFO, "JVM crashed, start jvm crash activity to show errors now!");
         }
+        if (fclBridge != null && fclBridge.isUseSDL3()) {
+            // SDLMain still has to run nativeCleanupMainThread() after this callback.
+            // SDLJVMActivity terminates the game process after upstream teardown.
+            return;
+        }
         android.os.Process.killProcess(android.os.Process.myPid());
     }
 
@@ -944,10 +950,14 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
             dialog.show();
         }
         if (v == openMultiplayerButton) {
+            if (!(getActivity() instanceof FCLActivity)) {
+                Toast.makeText(getActivity(), "Terracotta is not available in SDL mode yet", Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (multiplayerDialog == null) {
                 int width = (int) (AndroidUtils.getScreenWidth() * 0.7);
                 int height = (int) (AndroidUtils.getScreenHeight() * 0.9);
-                multiplayerDialog = new MultiplayerDialog(getActivity(), getActivity(), width, height);
+                multiplayerDialog = new MultiplayerDialog(getActivity(), (FCLActivity) getActivity(), width, height);
             }
             multiplayerDialog.show();
         }

@@ -48,6 +48,14 @@ android {
         prefab = true
     }
 
+    sourceSets {
+        getByName("main") {
+            // Keep SDL's Android JNI glue byte-for-byte upstream. SDL's native
+            // JNI registration depends on these exact org.libsdl.app classes.
+            java.srcDir(rootProject.file("SDL3/android-project/app/src/main/java"))
+        }
+    }
+
 }
 
 kotlin {

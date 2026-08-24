@@ -72,6 +72,9 @@ public final class GameLibrariesTask extends Task<Void> {
         this.dependencyManager = dependencyManager;
         this.version = LibFilter.filter(version);
         this.integrityCheck = integrityCheck;
+        // The caller may pass a minimally populated/inheriting Version while the resolved
+        // SDL/LWJGL libraries are supplied separately. Detect SDL from the list that will
+        // actually be downloaded, otherwise fresh snapshot installs lose every LWJGL jar.
         this.libraries = LibFilter.filterLibs(libraries);
 
         setSignificance(TaskSignificance.MODERATE);

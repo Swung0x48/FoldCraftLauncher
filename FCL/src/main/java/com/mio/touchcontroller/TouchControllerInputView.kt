@@ -37,8 +37,6 @@ import top.fifthlight.touchcontroller.proxy.message.input.TextRange
 import top.fifthlight.touchcontroller.proxy.message.input.compositionText
 import top.fifthlight.touchcontroller.proxy.message.input.doArrowLeft
 import top.fifthlight.touchcontroller.proxy.message.input.doArrowRight
-import top.fifthlight.touchcontroller.proxy.message.input.doBackspace
-import top.fifthlight.touchcontroller.proxy.message.input.doDelete
 import top.fifthlight.touchcontroller.proxy.message.input.doShiftLeft
 import top.fifthlight.touchcontroller.proxy.message.input.doShiftRight
 import top.fifthlight.touchcontroller.proxy.message.input.selectionText
@@ -339,6 +337,51 @@ class TouchControllerInputView @JvmOverloads constructor(
                 )
             }
 
+        private fun TextInputState.deleteSelectionAsNewState(): TextInputState =
+            TextInputState(
+                text = text.removeRange(selection),
+                selection = TextRange(selection.start),
+                composition = TextRange.EMPTY,
+            )
+
+        private fun TextInputState.deleteCodePointBeforeCursor(): TextInputState {
+            if (!composition.isEmpty()) {
+                return this
+            }
+            if (!selection.isEmpty()) {
+                return deleteSelectionAsNewState()
+            }
+            if (selection.start <= 0) {
+                return this
+            }
+
+            val deleteStart = Character.offsetByCodePoints(text, selection.start, -1)
+            return TextInputState(
+                text = text.removeRange(deleteStart, selection.start),
+                selection = TextRange(deleteStart),
+                composition = TextRange.EMPTY,
+            )
+        }
+
+        private fun TextInputState.deleteCodePointAfterCursor(): TextInputState {
+            if (!composition.isEmpty()) {
+                return this
+            }
+            if (!selection.isEmpty()) {
+                return deleteSelectionAsNewState()
+            }
+            if (selection.end >= text.length) {
+                return this
+            }
+
+            val deleteEnd = Character.offsetByCodePoints(text, selection.end, 1)
+            return TextInputState(
+                text = text.removeRange(selection.end, deleteEnd),
+                selection = TextRange(selection.end),
+                composition = TextRange.EMPTY,
+            )
+        }
+
         override fun commitText(text: CharSequence, newCursorPosition: Int): Boolean {
             var enterCount = 0
             val filteredText = text.filter {
@@ -412,7 +455,7 @@ class TouchControllerInputView @JvmOverloads constructor(
 
             var remainingAfter = afterLength
             var charCountAfter = 0
-            index = selectionStart
+            index = currentState.selection.end
 
             while (remainingAfter > 0 && index < text.length) {
                 val codePoint = Character.codePointAt(text, index)
@@ -592,12 +635,16 @@ class TouchControllerInputView @JvmOverloads constructor(
                 if (event.action == KeyEvent.ACTION_UP) {
                     return true
                 }
-                updateState(TextInputState::doBackspace)
+                updateState { currentState ->
+                    currentState.deleteCodePointBeforeCursor()
+                }
             } else if (event.keyCode == KeyEvent.KEYCODE_FORWARD_DEL) {
                 if (event.action == KeyEvent.ACTION_UP) {
                     return true
                 }
-                updateState(TextInputState::doDelete)
+                updateState { currentState ->
+                    currentState.deleteCodePointAfterCursor()
+                }
             } else {
                 fclInput?.handleKeyEvent(event)
             }

@@ -120,6 +120,17 @@
                 android:value="true" />
         </activity>
         <activity
+            android:name=".activity.SDLJVMActivity"
+            android:alwaysRetainTaskState="true"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:enableOnBackInvokedCallback="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="sensorLandscape">
+            <meta-data
+                android:name="com.android.graphics.injectLayers.enable"
+                android:value="true" />
+        </activity>
+        <activity
             android:name=".activity.JVMCrashActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation"
             android:process=":crash"

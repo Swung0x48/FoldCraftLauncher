@@ -189,6 +189,17 @@ public class CallbackBridge {
         CallbackBridge.fclBridge = fclBridge;
     }
 
+    /**
+     * Ensures libpojavexec is loaded in Android's VM before the embedded JVM is launched.
+     *
+     * <p>The method body is intentionally empty: invoking it initializes this class on the
+     * Android UI thread, where the Choreographer above is valid, and runs the native-library
+     * loader below. SDL launches only need pojavexec's JVM entry point; they must not create
+     * or attach the GLFW bridge window.</p>
+     */
+    public static void ensureNativeLauncherLoaded() {
+    }
+
     //Called from JRE side
     @SuppressWarnings("unused")
     private static void onGrabStateChanged(final boolean grabbing) {

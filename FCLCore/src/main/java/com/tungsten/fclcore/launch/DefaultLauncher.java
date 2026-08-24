@@ -41,6 +41,7 @@ import com.tungsten.fclcore.game.GameRepository;
 import com.tungsten.fclcore.game.JavaVersion;
 import com.tungsten.fclcore.game.LaunchOptions;
 import com.tungsten.fclcore.game.Version;
+import com.tungsten.fclcore.util.SDLVersionSupport;
 import com.tungsten.fclcore.util.StringUtils;
 import com.tungsten.fclcore.util.gson.UUIDTypeAdapter;
 import com.tungsten.fclcore.util.io.FileUtils;
@@ -81,6 +82,8 @@ public class DefaultLauncher extends Launcher {
 
     private CommandBuilder generateCommandLine() throws IOException {
         CommandBuilder res = new CommandBuilder();
+        String sdl3LwjglVersion = SDLVersionSupport.getSDL3LWJGLVersion(version);
+        boolean useSDL3 = sdl3LwjglVersion != null;
 
         getCacioJavaArgs(res, version, options);
 
@@ -163,6 +166,23 @@ public class DefaultLauncher extends Launcher {
         res.addDefault("-Dos.name=", "Linux");
         res.addDefault("-Dos.version=Android-", Build.VERSION.RELEASE);
         res.addDefault("-Dorg.lwjgl.opengl.libname=", "${gl_lib_name}");
+        if (useSDL3) {
+            String lwjglNativeDir = FCLPath.getSDL3LWJGLNativeDir(sdl3LwjglVersion);
+            for (String library : FCLPath.getRequiredSDL3LWJGLLibraries()) {
+                File nativeLibrary = new File(lwjglNativeDir, library);
+                if (!nativeLibrary.isFile()) {
+                    throw new IOException("Missing Android LWJGL " + sdl3LwjglVersion
+                            + " runtime for this SDL Minecraft version: " + nativeLibrary);
+                }
+            }
+            res.addDefault("-Dorg.lwjgl.librarypath=", lwjglNativeDir);
+            res.addDefault("-Dorg.lwjgl.libname=", new File(lwjglNativeDir, "liblwjgl.so").getAbsolutePath());
+            File sdlShim = new File(context.getApplicationInfo().nativeLibraryDir, "libfclsdlshim.so");
+            if (!sdlShim.isFile()) {
+                throw new IOException("Missing FCL SDL Android window shim: " + sdlShim);
+            }
+            res.addDefault("-Dorg.lwjgl.sdl.libname=", sdlShim.getAbsolutePath());
+        }
         res.addDefault("-Dorg.lwjgl.freetype.libname=", context.getApplicationInfo().nativeLibraryDir + "/libfreetype.so");
         res.addDefault("-Dfml.earlyprogresswindow=", "false");
         res.addDefault("-Dglfwstub.windowWidth=", options.getWidth() + "");
@@ -201,8 +221,10 @@ public class DefaultLauncher extends Launcher {
         res.add("-javaagent:" + FCLPath.LIB_PATCHER_PATH);
 
         Set<String> classpath = repository.getClasspath(version);
-        addLWJGLClassPath(classpath);
-        classpath.add(FCLPath.MIO_LAUNCH_WRAPPER);
+        if (!useSDL3) {
+            addLWJGLClassPath(classpath);
+            classpath.add(FCLPath.MIO_LAUNCH_WRAPPER);
+        }
         File jar = repository.getVersionJar(version);
         if (!jar.exists() || !jar.isFile()) {
             String inherits = version.getInheritsFrom();
@@ -232,14 +254,30 @@ public class DefaultLauncher extends Launcher {
         if (argumentsFromAuthInfo != null && argumentsFromAuthInfo.getJvm() != null && !argumentsFromAuthInfo.getJvm().isEmpty())
             res.addAll(Arguments.parseArguments(argumentsFromAuthInfo.getJvm(), configuration));
 
+        if (useSDL3) {
+            // Android's libc allocator is the supported LWJGL allocator for the
+            // bundled runtime. Apply this after every external JVM argument
+            // source so a stale jemalloc override cannot reintroduce a missing
+            // libjemalloc.so failure.
+            res.removeIf(arg -> arg.equals("-Dorg.lwjgl.system.allocator")
+                    || arg.startsWith("-Dorg.lwjgl.system.allocator="));
+            res.add("-Dorg.lwjgl.system.allocator=system");
+        }
+
         if (javaVersion.getVersion() != JavaVersion.JAVA_VERSION_8) {
             res.add("--add-exports");
             String pkg = version.getMainClass().substring(0, version.getMainClass().lastIndexOf("."));
             res.add(pkg + "/" + pkg + "=ALL-UNNAMED");
         }
 
-        res.add("mio.Wrapper");
-        res.add(version.getMainClass());
+        if (useSDL3) {
+            // Let JLI invoke the official public main directly. Mio's wrapper calls
+            // System.exit(1) for any reflected exception, which would skip SDL cleanup.
+            res.add(version.getMainClass());
+        } else {
+            res.add("mio.Wrapper");
+            res.add(version.getMainClass());
+        }
 
         res.addAll(Arguments.parseStringArguments(version.getMinecraftArguments().map(StringUtils::tokenize).orElseGet(ArrayList::new), configuration));
 
@@ -492,6 +530,8 @@ public class DefaultLauncher extends Launcher {
         );
         config.setUseVKDriverSystem(options.isVKDriverSystem());
         config.setPojavBigCore(options.isPojavBigCore());
+        config.setSDL3LwjglVersion(SDLVersionSupport.getSDL3LWJGLVersion(version));
+        config.setMainClass(version.getMainClass());
         config.setInstalledModLoaders(new FCLConfig.InstalledModLoaders(
                 analyzer.has(LibraryAnalyzer.LibraryType.FORGE),
                 analyzer.has(LibraryAnalyzer.LibraryType.CLEANROOM),

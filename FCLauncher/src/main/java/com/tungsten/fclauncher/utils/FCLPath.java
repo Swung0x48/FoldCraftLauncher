@@ -7,6 +7,15 @@ import java.io.File;
 
 public class FCLPath {
 
+    private static final String[] BUNDLED_SDL3_LWJGL_VERSIONS = {"3.4.1", "3.4.2"};
+    private static final String[] REQUIRED_SDL3_LWJGL_LIBRARIES = {
+            "liblwjgl.so",
+            "liblwjgl_opengl.so",
+            "liblwjgl_stb.so",
+            "liblwjgl_vma.so",
+            "liblwjgl_tinyfd.so"
+    };
+
     public static Context CONTEXT;
 
     public static String NATIVE_LIB_DIR;
@@ -103,6 +112,29 @@ public class FCLPath {
             return new File(path).mkdirs();
         }
         return true;
+    }
+
+    public static String[] getBundledSDL3LWJGLVersions() {
+        return BUNDLED_SDL3_LWJGL_VERSIONS.clone();
+    }
+
+    public static String[] getRequiredSDL3LWJGLLibraries() {
+        return REQUIRED_SDL3_LWJGL_LIBRARIES.clone();
+    }
+
+    public static String getSDL3LWJGLNativeDir(String lwjglVersion) {
+        boolean bundled = false;
+        for (String version : BUNDLED_SDL3_LWJGL_VERSIONS) {
+            if (version.equals(lwjglVersion)) {
+                bundled = true;
+                break;
+            }
+        }
+        if (!bundled) {
+            throw new IllegalArgumentException("Unsupported SDL LWJGL version: " + lwjglVersion);
+        }
+        String abi = Architecture.archAsAndroidAbi(Architecture.getProcessArchitecture());
+        return new File(LWJGL_DIR, lwjglVersion + "/natives/" + abi).getAbsolutePath();
     }
 
 }

@@ -120,8 +120,9 @@ androidComponents {
                 afterEvaluate {
                     val task =
                         tasks.named("merge${variantName}Assets").get() as MergeSourceSetFolders
+                    val arch = System.getProperty("arch", "all")
+                    task.inputs.property("runtimeArch", arch)
                     task.doLast {
-                        val arch = System.getProperty("arch", "all")
                         val assetsDir = task.outputDir.get().asFile
                         val jreList = listOf("jre8", "jre17", "jre21", "jre25")
                         println("arch:$arch")
@@ -131,6 +132,25 @@ androidComponents {
                             File(runtimeDir).listFiles().forEach {
                                 if (arch != "all" && it.name != "version" && !it.name.contains("universal") && it.name != "bin-${arch}.tar.xz") {
                                     println("delete:${it} : ${it.delete()}")
+                                }
+                            }
+                        }
+
+                        val androidAbi = mapOf(
+                            "arm" to "armeabi-v7a",
+                            "arm64" to "arm64-v8a",
+                            "x86" to "x86",
+                            "x86_64" to "x86_64"
+                        )[arch]
+                        if (androidAbi != null) {
+                            val lwjglRuntimeDir = File(assetsDir, "app_runtime/lwjgl")
+                            lwjglRuntimeDir.listFiles()?.forEach { versionDir ->
+                                if (versionDir.isDirectory) {
+                                    File(versionDir, "natives").listFiles()?.forEach { abiDir ->
+                                        if (abiDir.isDirectory && abiDir.name != androidAbi) {
+                                            println("delete:${abiDir} : ${abiDir.deleteRecursively()}")
+                                        }
+                                    }
                                 }
                             }
                         }

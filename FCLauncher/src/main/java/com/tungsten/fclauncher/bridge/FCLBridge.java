@@ -11,6 +11,7 @@ import android.graphics.Paint;
 import android.graphics.SurfaceTexture;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -19,15 +20,20 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
 
+import com.tungsten.fclauncher.keycodes.AndroidKeycodeMap;
 import com.tungsten.fclauncher.keycodes.LwjglGlfwKeycode;
 import com.tungsten.fclauncher.utils.FCLPath;
 
+import org.libsdl.app.FCLSDLInputBridge;
 import org.lwjgl.glfw.CallbackBridge;
 
 import java.io.File;
 import java.io.Serializable;
 
 public class FCLBridge implements Serializable {
+    private static final String TAG = "FCLBridge";
+    private static final int SDL_LAUNCH_FAILURE_EXIT_CODE = -1;
+
     public static boolean FORCE_RESOLUTION = false;
     public static float FORCE_RESOLUTION_SCALE = -1;
     public static int FORCE_RESOLUTION_WIDTH = 1920;
@@ -65,6 +71,8 @@ public class FCLBridge implements Serializable {
     public static final int CursorEnabled = 1;
     public static final int CursorDisabled = 0;
 
+    private static volatile boolean activeSDL3;
+
     private FCLBridgeCallback callback;
 
     private double scaleFactor = 1f;
@@ -81,6 +89,11 @@ public class FCLBridge implements Serializable {
     private SurfaceTexture surfaceTexture;
     private String modSummary;
     private boolean hasTouchController = false;
+    private boolean usesSDL3 = false;
+    private transient boolean hasSDLRelativeMouseMode;
+    private transient boolean sdlRelativeMouseMode;
+    private transient volatile boolean sdlExecutionRunning;
+    private transient volatile boolean sdlExitReported;
 
     static {
         System.loadLibrary("fcl");
@@ -148,7 +161,9 @@ public class FCLBridge implements Serializable {
         this.surface = surface;
         surfaceDestroyed = false;
         if (gameDir != null) {
-            CallbackBridge.setupBridgeWindow(surface);
+            if (!usesSDL3) {
+                CallbackBridge.setupBridgeWindow(surface);
+            }
         } else {
             handleWindow();
         }
@@ -159,7 +174,8 @@ public class FCLBridge implements Serializable {
     }
 
     public void execute(Surface surface, FCLBridgeCallback callback) {
-        this.handler = new Handler();
+        activeSDL3 = false;
+        this.handler = new Handler(Looper.getMainLooper());
         this.callback = callback;
         this.surface = surface;
         setFCLBridge(this);
@@ -183,7 +199,116 @@ public class FCLBridge implements Serializable {
         }
     }
 
+    /**
+     * Runs the prepared JVM task synchronously on SDLActivity's SDL thread.
+     * SDL owns the native window and its lifecycle, so this path deliberately
+     * does not initialize the GLFW callback bridge or attach a GLFW window.
+     */
+    public void executeSDL(FCLBridgeCallback callback) {
+        usesSDL3 = true;
+        activeSDL3 = true;
+        hasSDLRelativeMouseMode = false;
+        sdlExitReported = false;
+        this.callback = callback;
+        Throwable launchFailure = null;
+        try {
+            this.handler = new Handler(Looper.getMainLooper());
+            setFCLBridge(this);
+            FCLSDLInputBridge.reset();
+            receiveLog("==================== Before Start ====================\n");
+            receiveLog("invoke redirectStdio\n");
+            int errorCode = redirectStdio(getLogPath());
+            if (errorCode != 0) {
+                receiveLog("Can't exec redirectStdio! Error code: " + errorCode + "\n");
+            }
+            receiveLog("invoke setLogPipeReady\n");
+            receiveLog("invoke setEventPipe\n");
+
+            if (thread == null) {
+                throw new IllegalStateException("No JVM task was prepared for the SDL launch");
+            }
+
+            sdlExecutionRunning = true;
+            try {
+                // This must stay synchronous: SDL owns this thread and performs its
+                // native main-thread cleanup only after SDLActivity.main() returns.
+                thread.run();
+                if (!sdlExitReported) {
+                    throw new IllegalStateException(
+                            "The SDL JVM task returned without reporting an exit code");
+                }
+            } finally {
+                sdlExecutionRunning = false;
+            }
+        } catch (Throwable throwable) {
+            // Do not let a JVM setup/runtime failure escape SDLMain.run(). Returning
+            // normally from this method lets upstream SDL run nativeCleanupMainThread().
+            sdlExecutionRunning = false;
+            launchFailure = throwable;
+        }
+
+        if (launchFailure != null) {
+            try {
+                reportSDLLaunchFailure(launchFailure);
+            } catch (Throwable reportingFailure) {
+                // Even diagnostics must not escape back into upstream SDLMain.
+                try {
+                    Log.e(TAG, "Unable to report the SDL JVM failure", reportingFailure);
+                } catch (Throwable ignored) {
+                    // The only remaining priority is returning to SDL's cleanup path.
+                }
+            }
+            if (!sdlExitReported) {
+                try {
+                    onExit(SDL_LAUNCH_FAILURE_EXIT_CODE);
+                } catch (Throwable callbackFailure) {
+                    // The callback belongs to the UI layer. It must not be allowed to skip
+                    // SDL's native main-thread cleanup either.
+                    try {
+                        Log.e(TAG, "Unable to report the SDL JVM failure to the UI", callbackFailure);
+                    } catch (Throwable ignored) {
+                        // Continue returning to SDL's cleanup path.
+                    }
+                }
+            }
+        }
+    }
+
+    private void reportSDLLaunchFailure(Throwable throwable) {
+        String message = "Unhandled failure while running the JVM on SDLThread";
+        Log.e(TAG, message, throwable);
+        try {
+            receiveLog("\n" + message + "\n" + Log.getStackTraceString(throwable) + "\n");
+        } catch (Throwable logFailure) {
+            Log.e(TAG, "Unable to forward the SDL JVM failure to the game log", logFailure);
+        }
+    }
+
+    public boolean isSDLExecutionRunning() {
+        return sdlExecutionRunning;
+    }
+
     public void pushEventMouseButton(int button, boolean press) {
+        if (usesSDL3) {
+            syncSDLCursorMode();
+            switch (button) {
+                case Button4:
+                    if (press) {
+                        FCLSDLInputBridge.sendMouseWheel(0.0f, 1.0f);
+                    }
+                    break;
+                case Button5:
+                    if (press) {
+                        FCLSDLInputBridge.sendMouseWheel(0.0f, -1.0f);
+                    }
+                    break;
+                default:
+                    FCLSDLInputBridge.sendMouseButton(button, press);
+                    break;
+            }
+            return;
+        }
+
         switch (button) {
             case Button4:
                 if (press) {
@@ -205,27 +330,68 @@ public class FCLBridge implements Serializable {
             x = (int) ((x - FORCE_RESOLUTION_START_SIZE) / FORCE_RESOLUTION_SCALE);
             y = (int) (y / FORCE_RESOLUTION_SCALE);
         }
-        CallbackBridge.sendCursorPos(x, y);
+        if (usesSDL3) {
+            syncSDLCursorMode();
+            FCLSDLInputBridge.sendMousePosition(x, y);
+        } else {
+            CallbackBridge.sendCursorPos(x, y);
+        }
+    }
+
+    public void pushEventScroll(float horizontal, float vertical) {
+        if (usesSDL3) {
+            syncSDLCursorMode();
+            FCLSDLInputBridge.sendMouseWheel(horizontal, vertical);
+        } else {
+            CallbackBridge.sendScroll(horizontal, vertical);
+        }
     }
 
     public void pushEventPointer(float x, float y) {
-        CallbackBridge.sendCursorPos(x, y);
+        if (usesSDL3) {
+            syncSDLCursorMode();
+            FCLSDLInputBridge.sendMousePosition(x, y);
+        } else {
+            CallbackBridge.sendCursorPos(x, y);
+        }
     }
 
     public void pushEventKey(int keyCode, int keyChar, boolean press) {
-        CallbackBridge.sendKeycode(keyCode, (char) keyChar, 0, CallbackBridge.getCurrentMods(), press);
+        if (usesSDL3) {
+            syncSDLCursorMode();
+            FCLSDLInputBridge.sendKey(AndroidKeycodeMap.convertFCLKeycode(keyCode), press);
+        } else {
+            CallbackBridge.sendKeycode(keyCode, (char) keyChar, 0, CallbackBridge.getCurrentMods(), press);
+        }
     }
 
     public void pushEventChar(char keyChar) {
-        CallbackBridge.sendChar(keyChar, 0);
+        pushEventText(String.valueOf(keyChar));
+    }
+
+    public void pushEventText(String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        if (usesSDL3) {
+            syncSDLCursorMode();
+            FCLSDLInputBridge.sendText(text);
+        } else {
+            for (int i = 0; i < text.length(); i++) {
+                CallbackBridge.sendChar(text.charAt(i), 0);
+            }
+        }
     }
 
     public void pushEventWindow(int width, int height) {
-        CallbackBridge.sendUpdateWindowSize(width, height);
+        if (!usesSDL3) {
+            CallbackBridge.sendUpdateWindowSize(width, height);
+        }
     }
 
     // FCLBridge callbacks
     public void onExit(int code) {
+        sdlExitReported = true;
         if (callback != null) {
             callback.onLog("\nOpenJDK exited with code : " + code + "\n");
             callback.onExit(code);
@@ -242,6 +408,20 @@ public class FCLBridge implements Serializable {
         if (callback != null) {
             callback.onCursorModeChange(mode);
         }
+    }
+
+    public synchronized int syncSDLCursorMode() {
+        boolean relative = FCLSDLInputBridge.isRelativeMouseMode();
+        if (!hasSDLRelativeMouseMode || relative != sdlRelativeMouseMode) {
+            hasSDLRelativeMouseMode = true;
+            sdlRelativeMouseMode = relative;
+            setCursorMode(relative ? CursorDisabled : CursorEnabled);
+        }
+        return relative ? CursorDisabled : CursorEnabled;
+    }
+
+    public boolean isSDLTextInputReady() {
+        return usesSDL3 && FCLSDLInputBridge.isTextInputReady();
     }
 
     public void setPrimaryClipString(String string) {
@@ -427,7 +607,7 @@ public class FCLBridge implements Serializable {
     }
 
     public static int getFps() {
-        return CallbackBridge.getFps();
+        return activeSDL3 ? 0 : CallbackBridge.getFps();
     }
 
     public String getModSummary() {
@@ -444,5 +624,14 @@ public class FCLBridge implements Serializable {
 
     public void setHasTouchController(boolean hasTouchController) {
         this.hasTouchController = hasTouchController;
+    }
+
+    public boolean isUseSDL3() {
+        return usesSDL3;
+    }
+
+    public void setUseSDL3(boolean useSDL3) {
+        this.usesSDL3 = useSDL3;
+        activeSDL3 = useSDL3;
     }
 }

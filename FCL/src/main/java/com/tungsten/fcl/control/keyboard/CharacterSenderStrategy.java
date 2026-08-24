@@ -11,4 +11,11 @@ public interface CharacterSenderStrategy {
     /** Called when there is a character to send, may be called multiple times in a row */
     void sendChar(char character);
 
+    /** Called when text should be committed as a single Unicode string. */
+    default void sendText(CharSequence text) {
+        for (int i = 0; i < text.length(); i++) {
+            sendChar(text.charAt(i));
+        }
+    }
+
 }

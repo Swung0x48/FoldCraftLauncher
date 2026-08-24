@@ -3,17 +3,25 @@ package com.tungsten.fclauncher.keycodes;
 import android.view.KeyEvent;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class AndroidKeycodeMap {
 
     private static final int[] ANDROID_KEYCODES = new int[99];
     private static final int[] FCL_KEYCODES = new int[99];
+    private static final Map<Integer, Integer> FCL_TO_ANDROID_KEYCODES = new HashMap<>();
 
     private static int count = 0;
 
     private static void add(int androidKeycode, int fclKeycode) {
         ANDROID_KEYCODES[count] = androidKeycode;
         FCL_KEYCODES[count] = fclKeycode;
+        // Some Android keys (for example '@' and '2') map to the same evdev
+        // key. Keep the first, physical-keyboard mapping as the reverse value.
+        if (!FCL_TO_ANDROID_KEYCODES.containsKey(fclKeycode)) {
+            FCL_TO_ANDROID_KEYCODES.put(fclKeycode, androidKeycode);
+        }
         count++;
     }
 
@@ -22,6 +30,15 @@ public class AndroidKeycodeMap {
         if (index >= 0)
             return FCL_KEYCODES[index];
         return FCLKeycodes.KEY_UNKNOWN;
+    }
+
+    /**
+     * Converts an FCL/Linux evdev keycode to the Android keycode consumed by
+     * SDL's Android keyboard backend.
+     */
+    public static int convertFCLKeycode(int fclKeycode) {
+        Integer keycode = FCL_TO_ANDROID_KEYCODES.get(fclKeycode);
+        return keycode != null ? keycode : KeyEvent.KEYCODE_UNKNOWN;
     }
 
     static {
@@ -138,6 +155,20 @@ public class AndroidKeycodeMap {
         add(KeyEvent.KEYCODE_NUMPAD_COMMA,                   FCLKeycodes.KEY_KPCOMMA);
         add(KeyEvent.KEYCODE_NUMPAD_ENTER,                   FCLKeycodes.KEY_KPENTER);
         add(KeyEvent.KEYCODE_NUMPAD_EQUALS,                  FCLKeycodes.KEY_KPEQUAL);
+
+        // Prefer keyboard keys to Android navigation keys for synthesized
+        // input, and fill in evdev keys which don't occur in the forward map.
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_ESC,      KeyEvent.KEYCODE_ESCAPE);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_HOME,     KeyEvent.KEYCODE_MOVE_HOME);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_DELETE,   KeyEvent.KEYCODE_FORWARD_DEL);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_SCROLLLOCK, KeyEvent.KEYCODE_SCROLL_LOCK);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_SYSRQ,    KeyEvent.KEYCODE_SYSRQ);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_LEFTMATA, KeyEvent.KEYCODE_META_LEFT);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_RIGHTMETA, KeyEvent.KEYCODE_META_RIGHT);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_KPSLASH,  KeyEvent.KEYCODE_NUMPAD_DIVIDE);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_KPASTERISK, KeyEvent.KEYCODE_NUMPAD_MULTIPLY);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_KPMINUS,  KeyEvent.KEYCODE_NUMPAD_SUBTRACT);
+        FCL_TO_ANDROID_KEYCODES.put(FCLKeycodes.KEY_KPPLUS,   KeyEvent.KEYCODE_NUMPAD_ADD);
     }
 
 }

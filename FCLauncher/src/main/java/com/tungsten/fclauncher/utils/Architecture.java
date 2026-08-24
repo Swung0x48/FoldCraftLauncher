@@ -44,6 +44,22 @@ public class Architecture {
 	}
 
 	/**
+	 * Tells the architecture of the current Android process. This may differ from
+	 * the device architecture when a 32-bit APK runs on a 64-bit device.
+	 */
+	public static int getProcessArchitecture() {
+		boolean is64Bit = android.os.Process.is64Bit();
+		String[] abis = is64Bit ? Build.SUPPORTED_64_BIT_ABIS : Build.SUPPORTED_32_BIT_ABIS;
+		for (String abi : abis) {
+			int architecture = archAsInt(abi);
+			if (architecture == ARCH_X86 || architecture == ARCH_X86_64) {
+				return is64Bit ? ARCH_X86_64 : ARCH_X86;
+			}
+		}
+		return is64Bit ? ARCH_ARM64 : ARCH_ARM;
+	}
+
+	/**
 	 * Tell is the device is based on an x86 processor.
 	 * It doesn't tell if the device is 64 or 32 bits.
 	 * @return Whether or not the device is x86 based.
@@ -91,6 +107,20 @@ public class Architecture {
 	public static String archAsString(int arch) {
 		if (arch == ARCH_ARM64) return "arm64";
 		if (arch == ARCH_ARM) return "arm";
+		if (arch == ARCH_X86_64) return "x86_64";
+		if (arch == ARCH_X86) return "x86";
+		return "UNSUPPORTED_ARCH";
+	}
+
+	/**
+	 * Convert an architecture to the corresponding Android ABI directory name.
+	 *
+	 * @param arch The architecture as an int.
+	 * @return "arm64-v8a" || "armeabi-v7a" || "x86_64" || "x86" || "UNSUPPORTED_ARCH"
+	 */
+	public static String archAsAndroidAbi(int arch) {
+		if (arch == ARCH_ARM64) return "arm64-v8a";
+		if (arch == ARCH_ARM) return "armeabi-v7a";
 		if (arch == ARCH_X86_64) return "x86_64";
 		if (arch == ARCH_X86) return "x86";
 		return "UNSUPPORTED_ARCH";

@@ -29,4 +29,9 @@ public class LwjglCharSender implements CharacterSenderStrategy {
     public void sendChar(char character) {
         gameMenu.getInput().sendChar(character);
     }
+
+    @Override
+    public void sendText(CharSequence text) {
+        gameMenu.getInput().sendText(text.toString());
+    }
 }

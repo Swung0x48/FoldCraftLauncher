@@ -1,8 +1,9 @@
 package com.tungsten.fcl.control
 
+import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.tungsten.fcl.control.data.QuickInputTexts
 import com.tungsten.fcl.databinding.DialogQuickInputBinding
@@ -13,7 +14,7 @@ import com.tungsten.fcllibrary.component.dialog.FCLDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class QuickInputDialog(private val activity: AppCompatActivity, private val menu: GameMenu) :
+class QuickInputDialog(private val activity: Activity, private val menu: GameMenu) :
     FCLDialog(activity),
     View.OnClickListener {
     private val binding: DialogQuickInputBinding
@@ -36,9 +37,18 @@ class QuickInputDialog(private val activity: AppCompatActivity, private val menu
             QuickInputTexts.getInputTexts()
         ) {
             if (it.isNotEmpty()) {
-                if (menu.cursorMode == FCLBridge.CursorEnabled) {
-                    it.forEach { s ->
-                        menu.input.sendChar(s)
+                val bridge = menu.bridge
+                val usesSDL3 = bridge?.isUseSDL3 == true
+                val cursorMode = if (usesSDL3) {
+                    menu.input.syncCursorModeForInput()
+                } else {
+                    menu.cursorMode
+                }
+                if (cursorMode == FCLBridge.CursorEnabled) {
+                    if (usesSDL3) {
+                        menu.input.sendTextWhenReady(it)
+                    } else {
+                        menu.input.sendText(it)
                     }
                 } else {
                     val gameOption = menu.gameOption
@@ -54,14 +64,13 @@ class QuickInputDialog(private val activity: AppCompatActivity, private val menu
                         FCLKeycodes.KEY_T,
                         false
                     )
-                    activity.lifecycleScope.launch {
-                        delay(50)
-                        it.forEach { s ->
-                            menu.input.sendChar(s)
+                    if (usesSDL3) {
+                        menu.input.sendTextWhenReady(it, true)
+                    } else {
+                        (activity as LifecycleOwner).lifecycleScope.launch {
+                            delay(50)
+                            sendText(it, submit = true)
                         }
-                        menu.input.sendKeyEvent(FCLKeycodes.KEY_ENTER, true)
-                        menu.input.sendKeyEvent(FCLKeycodes.KEY_ENTER, false)
-
                     }
                 }
             }
@@ -69,6 +78,14 @@ class QuickInputDialog(private val activity: AppCompatActivity, private val menu
             dismiss()
         }
         binding.list.setAdapter(adapter)
+    }
+
+    private fun sendText(text: String, submit: Boolean) {
+        menu.input.sendText(text)
+        if (submit) {
+            menu.input.sendKeyEvent(FCLKeycodes.KEY_ENTER, true)
+            menu.input.sendKeyEvent(FCLKeycodes.KEY_ENTER, false)
+        }
     }
 
     override fun onClick(v: View?) {

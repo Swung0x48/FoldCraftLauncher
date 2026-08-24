@@ -37,6 +37,7 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     private GameMenu menu;
     private boolean isDoingInternalChanges = false;
     private CharacterSenderStrategy characterSender;
+    private String previousText = "";
 
     /**
      * We take the new chars, and send them to the game.
@@ -46,19 +47,23 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     @Override
     protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter);
+        String oldText = previousText;
+        previousText = text.toString();
         if (isDoingInternalChanges)
             return;
         if (characterSender != null) {
-            for (int i = 0; i < lengthBefore; ++i) {
+            int deletionCodePoints = lengthBefore;
+            if (oldText != null && start >= 0 && start <= oldText.length()) {
+                int end = Math.min(oldText.length(), start + lengthBefore);
+                deletionCodePoints = Character.codePointCount(oldText, start, end);
+            }
+            for (int i = 0; i < deletionCodePoints; ++i) {
                 characterSender.sendBackspace();
             }
-
-            for (int i = start, count = 0; count < lengthAfter; ++i) {
-                characterSender.sendChar(text.charAt(i));
-                ++count;
+            if (lengthAfter > 0) {
+                characterSender.sendText(text.subSequence(start, start + lengthAfter));
             }
         }
-
         // Reset the keyboard state
         if (text.length() < 1)
             clear();

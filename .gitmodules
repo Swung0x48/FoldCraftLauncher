@@ -11,3 +11,6 @@
 	path = SimpleFPEWrapper
 	url = https://github.com/MobileGL-Dev/SimpleFPEWrapper.git
 	branch = main
+[submodule "SDL3"]
+	path = SDL3
+	url = https://github.com/libsdl-org/SDL.git
