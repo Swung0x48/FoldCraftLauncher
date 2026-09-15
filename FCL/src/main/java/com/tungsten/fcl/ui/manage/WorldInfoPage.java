@@ -6,7 +6,6 @@ import static com.tungsten.fcllibrary.util.LocaleUtils.formatDateTime;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -22,24 +21,20 @@ import com.github.steveice10.opennbt.tag.builtin.LongTag;
 import com.github.steveice10.opennbt.tag.builtin.StringTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
 import com.tungsten.fcl.R;
-import com.tungsten.fcl.util.AndroidUtils;
-import com.tungsten.fcl.util.FXUtils;
-import com.tungsten.fclauncher.utils.FCLPath;
-import com.tungsten.fclcore.fakefx.beans.property.ObjectProperty;
-import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty;
+import com.mio.util.AndroidUtilKt;
+import com.tungsten.fcl.FCLApp;
 import com.tungsten.fclcore.fakefx.collections.FXCollections;
 import com.tungsten.fclcore.fakefx.collections.ObservableList;
 import com.tungsten.fclcore.game.World;
 import com.tungsten.fclcore.task.Task;
 import com.tungsten.fclcore.util.Lang;
 import com.tungsten.fclcore.util.StringUtils;
-import com.tungsten.fcllibrary.component.ui.FCLTempPage;
+import com.tungsten.fcllibrary.component.ui.FCLPage;
 import com.tungsten.fcllibrary.component.view.FCLEditText;
 import com.tungsten.fcllibrary.component.view.FCLLinearLayout;
 import com.tungsten.fcllibrary.component.view.FCLSpinner;
 import com.tungsten.fcllibrary.component.view.FCLSwitch;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
-import com.tungsten.fcllibrary.component.view.FCLUILayout;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -48,9 +43,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
-public class WorldInfoPage extends FCLTempPage {
+public class WorldInfoPage extends FCLPage {
 
     private final World world;
     private final CompoundTag levelDat;
@@ -75,40 +69,12 @@ public class WorldInfoPage extends FCLTempPage {
     private FCLEditText foodLevel;
     private FCLEditText xpLevel;
 
-    public WorldInfoPage(Context context, int id, FCLUILayout parent, int resId, World world) throws IOException {
-        super(context, id, parent, resId);
+    public WorldInfoPage(Context context, int id, World world) throws IOException {
+        super(context, id, R.layout.page_manage_world_info);
         this.world = world;
         this.levelDat = world.readLevelDat();
         this.dataTag = levelDat.get("Data");
         this.worldGenSettings = dataTag.get("WorldGenSettings");
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-
-        name = findViewById(R.id.name);
-        gameVersion = findViewById(R.id.game_version);
-        seed = findViewById(R.id.seed);
-        lastPlayed = findViewById(R.id.last_played);
-        time = findViewById(R.id.time);
-        allowCheat = findViewById(R.id.allow_cheat);
-        generateStructure = findViewById(R.id.generate_structures);
-        difficulty = findViewById(R.id.difficulty);
-
-        playerInfo = findViewById(R.id.player_info);
-        location = findViewById(R.id.location);
-        lastDeath = findViewById(R.id.last_death);
-        spawn = findViewById(R.id.spawn);
-        gameType = findViewById(R.id.game_mode);
-        health = findViewById(R.id.health);
-        foodLevel = findViewById(R.id.food_level);
-        xpLevel = findViewById(R.id.xp_level);
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
 
         name.setText(world.getWorldName());
         gameVersion.setText(world.getGameVersion());
@@ -120,7 +86,7 @@ public class WorldInfoPage extends FCLTempPage {
         Tag timeTag = dataTag.get("Time");
         if (timeTag instanceof LongTag) {
             long days = ((LongTag) timeTag).getValue() / 24000;
-            time.setText(AndroidUtils.getLocalizedText(getContext(), "world_info_time_format", days));
+            time.setText(getContext().getString(R.string.world_info_time_format, days));
         }
         Tag cheatTag = dataTag.get("allowCommands");
         if (cheatTag instanceof ByteTag) {
@@ -154,23 +120,16 @@ public class WorldInfoPage extends FCLTempPage {
         } else {
             generateStructure.setEnabled(false);
         }
-        difficulty.setDataList(new ArrayList<>(Difficulty.items));
-        ArrayAdapter<String> difficultyAdapter = new ArrayAdapter<>(getContext(), R.layout.item_spinner_auto_tint, Difficulty.items.stream().map(Difficulty::toString).collect(Collectors.toList()));
-        difficultyAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
-        difficulty.setAdapter(difficultyAdapter);
+        difficulty.setItems(new ArrayList<>(Difficulty.items));
         Tag difficultyTag = dataTag.get("Difficulty");
         if (difficultyTag instanceof ByteTag) {
             ByteTag byteTag = (ByteTag) difficultyTag;
             Difficulty difficulty = Difficulty.of(byteTag.getValue());
             if (difficulty != null) {
                 this.difficulty.setSelection(difficulty.getPosition());
-                ObjectProperty<Difficulty> difficultyProperty = new SimpleObjectProperty<>(difficulty);
-                FXUtils.bindSelection(this.difficulty, difficultyProperty);
-                difficultyProperty.addListener(observable -> {
-                    if (difficultyProperty.get() != null) {
-                        byteTag.setValue((byte) difficultyProperty.get().ordinal());
-                        saveLevelDat();
-                    }
+                this.difficulty.setOnItemSelectedListener((index, item) -> {
+                    byteTag.setValue((byte) item.ordinal());
+                    saveLevelDat();
                 });
             } else {
                 this.difficulty.setEnabled(false);
@@ -207,23 +166,16 @@ public class WorldInfoPage extends FCLTempPage {
                 if (x instanceof IntTag && y instanceof IntTag && z instanceof IntTag)
                     spawn.setText(spawnDim.formatPosition(((IntTag) x).getValue(), ((IntTag) y).getValue(), ((IntTag) z).getValue()));
             }
-            gameType.setDataList(new ArrayList<>(GameType.items));
-            ArrayAdapter<String> gameTypeAdapter = new ArrayAdapter<>(getContext(), R.layout.item_spinner_auto_tint, GameType.items.stream().map(GameType::toString).collect(Collectors.toList()));
-            gameTypeAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
-            gameType.setAdapter(gameTypeAdapter);
+            gameType.setItems(new ArrayList<>(GameType.items));
             Tag gameTypeTag = player.get("playerGameType");
             if (gameTypeTag instanceof IntTag) {
                 IntTag intTag = (IntTag) gameTypeTag;
                 GameType gameType = GameType.of(intTag.getValue());
                 if (gameType != null) {
                     this.gameType.setSelection(gameType.getPosition());
-                    ObjectProperty<GameType> gameTypeProperty = new SimpleObjectProperty<>(gameType);
-                    FXUtils.bindSelection(this.gameType, gameTypeProperty);
-                    gameTypeProperty.addListener(observable -> {
-                        if (gameTypeProperty.get() != null) {
-                            intTag.setValue(gameTypeProperty.get().ordinal());
-                            saveLevelDat();
-                        }
+                    this.gameType.setOnItemSelectedListener((index, item) -> {
+                        intTag.setValue(item.ordinal());
+                        saveLevelDat();
                     });
                 } else {
                     this.gameType.setEnabled(false);
@@ -292,15 +244,32 @@ public class WorldInfoPage extends FCLTempPage {
             playerInfo.setVisibility(View.GONE);
         }
     }
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        name = findViewById(R.id.name);
+        gameVersion = findViewById(R.id.game_version);
+        seed = findViewById(R.id.seed);
+        lastPlayed = findViewById(R.id.last_played);
+        time = findViewById(R.id.time);
+        allowCheat = findViewById(R.id.allow_cheat);
+        generateStructure = findViewById(R.id.generate_structures);
+        difficulty = findViewById(R.id.difficulty);
+
+        playerInfo = findViewById(R.id.player_info);
+        location = findViewById(R.id.location);
+        lastDeath = findViewById(R.id.last_death);
+        spawn = findViewById(R.id.spawn);
+        gameType = findViewById(R.id.game_mode);
+        health = findViewById(R.id.health);
+        foodLevel = findViewById(R.id.food_level);
+        xpLevel = findViewById(R.id.xp_level);
+    }
 
     @Override
     public Task<?> refresh(Object... param) {
         return null;
-    }
-
-    @Override
-    public void onRestart() {
-
     }
 
     private void saveLevelDat() {
@@ -314,8 +283,8 @@ public class WorldInfoPage extends FCLTempPage {
 
     private static final class Dimension {
         static final Dimension OVERWORLD = new Dimension(null);
-        static final Dimension THE_NETHER = new Dimension(FCLPath.CONTEXT.getString(R.string.world_info_dimension_the_nether));
-        static final Dimension THE_END = new Dimension(FCLPath.CONTEXT.getString(R.string.world_info_dimension_the_end));
+        static final Dimension THE_NETHER = new Dimension(FCLApp.getAppContext().getString(R.string.world_info_dimension_the_nether));
+        static final Dimension THE_END = new Dimension(FCLApp.getAppContext().getString(R.string.world_info_dimension_the_end));
 
         final String name;
 
@@ -431,7 +400,7 @@ public class WorldInfoPage extends FCLTempPage {
         @NonNull
         @Override
         public String toString() {
-            return AndroidUtils.getLocalizedText(FCLPath.CONTEXT, "world_info_difficulty_" + name().toLowerCase(Locale.ROOT));
+            return AndroidUtilKt.getLocalizedText(FCLApp.getAppContext(), "world_info_difficulty_" + name().toLowerCase(Locale.ROOT));
         }
     }
 
@@ -460,7 +429,7 @@ public class WorldInfoPage extends FCLTempPage {
         @NonNull
         @Override
         public String toString() {
-            return AndroidUtils.getLocalizedText(FCLPath.CONTEXT, "world_info_player_game_type_" + name().toLowerCase(Locale.ROOT));
+            return AndroidUtilKt.getLocalizedText(FCLApp.getAppContext(), "world_info_player_game_type_" + name().toLowerCase(Locale.ROOT));
         }
     }
 }

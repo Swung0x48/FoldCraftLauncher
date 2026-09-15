@@ -10,11 +10,13 @@ import androidx.annotation.NonNull;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.game.OAuthServer;
 import com.tungsten.fcl.setting.Accounts;
-import com.tungsten.fcl.util.AndroidUtils;
+import com.mio.util.AndroidUtilKt;
+import com.mio.util.LoginStageTextBinder;
 import com.tungsten.fcl.util.FXUtils;
 import com.tungsten.fcl.util.WeakListenerHolder;
 import com.tungsten.fclcore.auth.AuthInfo;
 import com.tungsten.fclcore.auth.OAuthAccount;
+import com.tungsten.fclcore.auth.microsoft.MicrosoftAccount;
 import com.tungsten.fclcore.fakefx.beans.property.ObjectProperty;
 import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty;
 import com.tungsten.fclcore.task.Schedulers;
@@ -23,6 +25,8 @@ import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.component.dialog.FCLDialog;
 import com.tungsten.fcllibrary.component.view.FCLButton;
 
+import android.widget.TextView;
+
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
@@ -30,6 +34,10 @@ public class OAuthAccountLoginDialog extends FCLDialog implements View.OnClickLi
 
     private final FCLButton positive;
     private final FCLButton negative;
+
+    /** 登录进度行（include view_login_progress），微软重登时显示当前阶段 */
+    private final View loginProgress;
+    private final TextView progressText;
 
     private final OAuthAccount account;
     private final Consumer<AuthInfo> success;
@@ -50,20 +58,22 @@ public class OAuthAccountLoginDialog extends FCLDialog implements View.OnClickLi
 
         FXUtils.onChangeAndOperate(deviceCode, deviceCode -> Schedulers.androidUIThread().execute(() -> {
             if (deviceCode != null) {
-                AndroidUtils.copyText(getContext(), deviceCode.getUserCode());
+                AndroidUtilKt.copyText(getContext(), deviceCode.getUserCode());
             }
         }));
         holder.add(Accounts.OAUTH_CALLBACK.onGrantDeviceCode.registerWeak(deviceCode::set));
         holder.add(Accounts.OAUTH_CALLBACK.onOpenBrowser.registerWeak(event -> {
             if (useExternalBrowser) {
-                AndroidUtils.openLink(context, event.getUrl());
+                AndroidUtilKt.openLink(context, event.getUrl());
             } else {
-                AndroidUtils.openLinkWithBuiltinWebView(context, event.getUrl());
+                AndroidUtilKt.openLinkWithBuiltinWebView(context, event.getUrl());
             }
         }));
 
         positive = findViewById(R.id.login);
         negative = findViewById(R.id.cancel);
+        loginProgress = findViewById(R.id.login_progress);
+        progressText = findViewById(R.id.progress_text);
 
         positive.setOnClickListener(this);
         negative.setOnClickListener(this);
@@ -80,8 +90,19 @@ public class OAuthAccountLoginDialog extends FCLDialog implements View.OnClickLi
         if (view == positive) {
             positive.setEnabled(false);
             negative.setEnabled(false);
+            // 微软账户注入登录进度回调，实时显示各认证阶段
+            MicrosoftAccount microsoftAccount = account instanceof MicrosoftAccount ? (MicrosoftAccount) account : null;
+            if (microsoftAccount != null) {
+                loginProgress.setVisibility(View.VISIBLE);
+                progressText.setText(R.string.launch_state_logging_in);
+                microsoftAccount.setProgressCallback(new LoginStageTextBinder(getContext(), progressText));
+            }
             Task.supplyAsync(account::logInWhenCredentialsExpired)
                     .whenComplete(Schedulers.androidUIThread(), (authInfo, exception) -> {
+                        if (microsoftAccount != null) {
+                            microsoftAccount.setProgressCallback(null);
+                            loginProgress.setVisibility(View.GONE);
+                        }
                         if (exception == null) {
                             success.accept(authInfo);
                             dismiss();
@@ -91,7 +112,7 @@ public class OAuthAccountLoginDialog extends FCLDialog implements View.OnClickLi
                             builder.setAlertLevel(FCLAlertDialog.AlertLevel.ALERT);
                             builder.setMessage(Accounts.localizeErrorMessage(getContext(), exception));
                             builder.setCancelable(false);
-                            builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                            builder.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), null);
                             builder.create().show();
                         }
                         positive.setEnabled(true);

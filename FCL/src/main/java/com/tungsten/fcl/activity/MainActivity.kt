@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
@@ -15,22 +16,27 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.provider.Settings
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.animation.BounceInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.forEach
+import androidx.core.view.isVisible
 import androidx.core.view.postDelayed
 import androidx.lifecycle.lifecycleScope
+import com.mio.download.DownloadManager
 import com.mio.manager.RendererManager
+import com.mio.plugin.DriverPlugin
 import com.mio.ui.dialog.RendererSelectDialog
 import com.mio.util.AnimUtil
 import com.mio.util.AnimUtil.Companion.interpolator
@@ -39,6 +45,8 @@ import com.mio.util.DisplayUtil
 import com.mio.util.GuideUtil
 import com.mio.util.GuideUtil.Companion.guideTarget
 import com.mio.util.ImageUtil
+import com.mio.util.getLocalizedText
+import com.mio.util.hasStringId
 import com.mio.util.showWarningDialog
 import com.tungsten.fcl.R
 import com.tungsten.fcl.databinding.ActivityMainBinding
@@ -49,15 +57,11 @@ import com.tungsten.fcl.setting.ConfigHolder
 import com.tungsten.fcl.setting.Controllers
 import com.tungsten.fcl.setting.Profile
 import com.tungsten.fcl.setting.Profiles
-import com.tungsten.fcl.ui.PageManager
 import com.tungsten.fcl.ui.UIManager
 import com.tungsten.fcl.ui.download.modpack.LocalModpackPage
+import com.tungsten.fcl.ui.main.MainUI
 import com.tungsten.fcl.ui.version.Versions
 import com.tungsten.fcl.upgrade.UpdateChecker
-import com.tungsten.fcl.util.AndroidUtils
-import com.tungsten.fcl.util.FXUtils
-import com.tungsten.fcl.util.WeakListenerHolder
-import com.tungsten.fclauncher.plugins.DriverPlugin
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.auth.Account
 import com.tungsten.fclcore.auth.authlibinjector.AuthlibInjectorAccount
@@ -66,8 +70,6 @@ import com.tungsten.fclcore.auth.yggdrasil.TextureModel
 import com.tungsten.fclcore.download.LibraryAnalyzer
 import com.tungsten.fclcore.download.LibraryAnalyzer.LibraryType
 import com.tungsten.fclcore.fakefx.beans.binding.Bindings
-import com.tungsten.fclcore.fakefx.beans.property.IntegerProperty
-import com.tungsten.fclcore.fakefx.beans.property.IntegerPropertyBase
 import com.tungsten.fclcore.fakefx.beans.property.ObjectProperty
 import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty
 import com.tungsten.fclcore.fakefx.beans.value.ObservableValue
@@ -80,9 +82,11 @@ import com.tungsten.fcllibrary.component.FCLActivity
 import com.tungsten.fcllibrary.component.dialog.EditDialog
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog
 import com.tungsten.fcllibrary.component.theme.ThemeEngine
+import com.tungsten.fcllibrary.component.ui.FCLPage
 import com.tungsten.fcllibrary.component.view.FCLMenuView
 import com.tungsten.fcllibrary.component.view.FCLMenuView.OnSelectListener
 import com.tungsten.fcllibrary.util.ConvertUtils
+import com.tungsten.fcllibrary.util.shareLogFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,6 +95,7 @@ import java.io.IOException
 import java.lang.ref.WeakReference
 import java.util.logging.Level
 import java.util.stream.Stream
+import kotlin.math.abs
 import kotlin.system.exitProcess
 
 class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
@@ -108,19 +113,34 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     private var _uiManager: UIManager? = null
     lateinit var uiManager: UIManager
     private lateinit var currentAccount: ObjectProperty<Account?>
-    private val holder = WeakListenerHolder()
     private lateinit var profile: Profile
-    private lateinit var theme: IntegerProperty
-    private lateinit var theme2: IntegerProperty
-    private lateinit var theme2Dark: IntegerProperty
     var isVersionLoading = false
     private var modpackHandled = false
     lateinit var permissionResultLauncher: ActivityResultLauncher<String>
     private lateinit var sharedPreferences: SharedPreferences
+    private var rightMenuWidth = 0
+    private var skinViewerWidth = 0
+
+    /** 右菜单显示/隐藏手势：双指在 right_menu 区域内水平滑动切换（左滑显示、右滑隐藏），不消费事件 */
+    private var twoFingerStartX = 0f
+    private var twoFingerStartY = 0f
+    private var secondFingerStartX = 0f
+    private var secondFingerStartY = 0f
+    private var twoFingerTracking = false
+
     var mediaPlayer: MediaPlayer? = null
     private var videoPosition = 0
     private var autoLaunchCountdownDialog: FCLAlertDialog? = null
     private var autoLaunchCountdownTimer: CountDownTimer? = null
+
+    /** 右列内容当前是否为下载面板（true 时波浪/账号等让位给任务列表） */
+    private var downloadPanelOpen = false
+
+    /** 是否有下载任务（收起面板时用于决定波浪指示器显隐） */
+    private var hasTasks = false
+
+    /** 通知点击进入后待执行的"定位到下载页"请求（uiManager 初始化前先排队） */
+    private var pendingOpenDownload = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,10 +149,8 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         binding = ActivityMainBinding.inflate(layoutInflater)
         sharedPreferences = getSharedPreferences("launcher", MODE_PRIVATE)
         setContentView(binding.root)
-        ImageUtil.loadInto(
-            binding.background,
-            ThemeEngine.getInstance().getTheme().getBackground(this)
-        )
+        loadBackground()
+        ThemeEngine.getInstance().addRefreshListener(themeRefreshListener)
 
         RemoteMod.registerEmptyRemoteMod(
             RemoteMod(
@@ -174,11 +192,10 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         }
 
         binding.apply {
-            initBackground()
             uiLayout.post {
                 ThemeEngine.getInstance().registerEvent(leftMenu) {
                     leftMenu.background = GradientDrawable().apply {
-                        setColor(ThemeEngine.getInstance().getTheme().color)
+                        setColor(ThemeEngine.getInstance().getTheme().getColor())
                         shape = GradientDrawable.RECTANGLE
                         ConvertUtils.dip2px(this@MainActivity, 8f).toFloat().apply {
                             cornerRadii = floatArrayOf(0f, 0f, this, this, this, this, 0f, 0f)
@@ -227,44 +244,98 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                         home.isSelected = true
                     }
                 }
-                uiManager.init {
-                    home.setOnSelectListener(this@MainActivity)
-                    manage.setOnSelectListener(this@MainActivity)
-                    download.setOnSelectListener(this@MainActivity)
-                    controller.setOnSelectListener(this@MainActivity)
-                    multiplayer.setOnSelectListener(this@MainActivity)
-                    setting.setOnSelectListener(this@MainActivity)
-                    home.setSelected(true)
-                    home.setOnLongClickListener {
-                        shareLog()
-                        true
-                    }
-                    back.setOnClickListener(this@MainActivity)
-                    back.setOnLongClickListener {
-                        startActivity(Intent(this@MainActivity, ShellActivity::class.java))
-                        true
-                    }
-                    UpdateChecker.getInstance().checkAuto(this@MainActivity).start()
-                    if (!checkNotificationPermission() && getSharedPreferences(
-                            "launcher",
-                            MODE_PRIVATE
-                        ).getBoolean("check_notification_permission", true)
-                    ) {
-                        getSharedPreferences("launcher", MODE_PRIVATE).edit {
-                            putBoolean("check_notification_permission", false)
+                uiManager.init()
+                // 滑动切换页面时同步左侧菜单高亮与标题（复用 setSelected 触发 onSelect 的机制）
+                uiManager.pageSelectedListener = { position ->
+                    when (position) {
+                        0 -> {
+                            refreshMenuView(home)
+                            home.setSelected(true)
+                            // 主页重建/重新进入时应用皮肤位置状态（right_menu 隐藏则固定；
+                            // skinViewerWidth 仅在隐藏右菜单时捕获，未捕获过（为 0）时保持默认百分比布局，
+                            // 否则会把皮肤宽度设为 0 导致模型消失
+                            fixSkinViewerPosition(binding.rightMenu.visibility != View.VISIBLE && skinViewerWidth > 0)
                         }
-                        FCLAlertDialog.Builder(this@MainActivity)
-                            .setMessage(getString(R.string.notification_permission))
-                            .setPositiveButton {
-                                requestNotificationPermission()
-                            }
-                            .setNegativeButton {}
-                            .create()
-                            .show()
+
+                        1 -> {
+                            refreshMenuView(manage)
+                            manage.setSelected(true)
+                        }
+
+                        2 -> {
+                            refreshMenuView(download)
+                            download.setSelected(true)
+                        }
+
+                        3 -> {
+                            refreshMenuView(controller)
+                            controller.setSelected(true)
+                        }
+
+                        4 -> {
+                            refreshMenuView(multiplayer)
+                            multiplayer.setSelected(true)
+                        }
+
+                        5 -> {
+                            refreshMenuView(setting)
+                            setting.setSelected(true)
+                        }
+
+                        6 -> {
+                            refreshMenuView(null)
+                            title.setTextWithAnim(getString(R.string.account))
+                        }
+
+                        7 -> {
+                            refreshMenuView(null)
+                            title.setTextWithAnim(getString(R.string.version))
+                        }
                     }
-                    if (!modpackHandled) {
-                        handleModpack(intent)
+                }
+                // 点击左侧菜单项：始终播放选中动画（已选中时重复点击也能触发），选中与切换逻辑沿用 setSelected
+                listOf(home, manage, download, controller, multiplayer, setting).forEach { menu ->
+                    menu.setOnClickListener {
+                        playMenuAnim(menu)
+                        menu.setSelected(true)
                     }
+                }
+                home.setOnSelectListener(this@MainActivity)
+                manage.setOnSelectListener(this@MainActivity)
+                download.setOnSelectListener(this@MainActivity)
+                controller.setOnSelectListener(this@MainActivity)
+                multiplayer.setOnSelectListener(this@MainActivity)
+                setting.setOnSelectListener(this@MainActivity)
+                home.setSelected(true)
+                home.setOnLongClickListener {
+                    shareLogFile(this@MainActivity, FCLPath.getLatestGameLog())
+                    true
+                }
+                back.setOnClickListener(this@MainActivity)
+                back.setOnLongClickListener {
+                    startActivity(Intent(this@MainActivity, ShellActivity::class.java))
+                    true
+                }
+                UpdateChecker.getInstance().checkAuto(this@MainActivity).start()
+                if (!checkNotificationPermission() && getSharedPreferences(
+                        "launcher",
+                        MODE_PRIVATE
+                    ).getBoolean("check_notification_permission", true)
+                ) {
+                    getSharedPreferences("launcher", MODE_PRIVATE).edit {
+                        putBoolean("check_notification_permission", false)
+                    }
+                    FCLAlertDialog.Builder(this@MainActivity)
+                        .setMessage(getString(R.string.notification_permission))
+                        .setPositiveButton {
+                            requestNotificationPermission()
+                        }
+                        .setNegativeButton {}
+                        .create()
+                        .show()
+                }
+                if (!modpackHandled) {
+                    handleModpack(intent)
                 }
                 setupAccountDisplay()
                 setupVersionDisplay()
@@ -289,7 +360,57 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         permissionResultLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             }
+        // 下载管理：有任务时右侧菜单顶部显示波浪进度，点击切换为下载面板内容
+        binding.downloadPanel.onCloseRequest = { closeDownloadPanel() }
+        binding.downloadWaveProgress.setOnClickListener {
+            if (downloadPanelOpen) closeDownloadPanel() else openDownloadPanel()
+        }
+        lifecycleScope.launch {
+            var tasksEmpty = true
+            DownloadManager.tasks.collect { tasks ->
+                binding.downloadPanel.updateTasks(tasks)
+                hasTasks = tasks.isNotEmpty()
+                if (tasks.isEmpty()) {
+                    if (downloadPanelOpen) closeDownloadPanel()
+                    else binding.downloadWaveProgress.visibility = View.GONE
+                } else if (tasksEmpty) {
+                    // 从无任务变为有任务：自动展开面板
+                    openDownloadPanel()
+                }
+                tasksEmpty = tasks.isEmpty()
+            }
+        }
+        // 聚合进度随任务进度变化实时推送，驱动波浪指示器
+        lifecycleScope.launch {
+            DownloadManager.progress.collect { progress ->
+                binding.downloadWaveProgress.setProgress(progress)
+            }
+        }
+        // 通知点击进入：定位到下载页并展开面板（此时 uiManager 可能尚未初始化，先排队）
+        handleNotificationIntent(intent)
+        applyPendingOpenDownload()
         setupLiveBackground()
+    }
+
+    /** 通知点击进入启动器时，切换到下载页并展开面板 */
+    private fun handleNotificationIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(DownloadManager.EXTRA_OPEN_PANEL, false) == true) {
+            pendingOpenDownload = true
+            applyPendingOpenDownload()
+        }
+    }
+
+    private fun applyPendingOpenDownload() {
+        if (!pendingOpenDownload) return
+        if (_uiManager == null) return
+        uiManager.switchUI(uiManager.downloadUI)
+        openDownloadPanel()
+        pendingOpenDownload = false
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNotificationIntent(intent)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -298,6 +419,61 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // 仅分析手势（不消费事件），用于右菜单显示/隐藏
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // 恰好两根手指按下时记录两指起始位置
+                if (ev.pointerCount == 2) {
+                    twoFingerStartX = ev.getX(0)
+                    twoFingerStartY = ev.getY(0)
+                    secondFingerStartX = ev.getX(1)
+                    secondFingerStartY = ev.getY(1)
+                    twoFingerTracking = true
+                } else {
+                    twoFingerTracking = false
+                }
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (twoFingerTracking && ev.pointerCount >= 2) {
+                    val centerX = (ev.getX(0) + ev.getX(1)) / 2
+                    val centerY = (ev.getY(0) + ev.getY(1)) / 2
+                    val startCenterX = (twoFingerStartX + secondFingerStartX) / 2
+                    val startCenterY = (twoFingerStartY + secondFingerStartY) / 2
+                    val dx = centerX - startCenterX
+                    val dy = centerY - startCenterY
+                    // 水平位移超过阈值且为主导方向时触发，一次手势只触发一次
+                    if (abs(dx) > ViewConfiguration.get(this).scaledTouchSlop * 3f && abs(dx) > abs(
+                            dy
+                        )
+                    ) {
+                        twoFingerTracking = false
+                        // 仅当两指起始位置都在 right_menu 区域内才触发
+                        // （菜单隐藏时无布局尺寸，按隐藏前记录的宽度推算右侧区域）
+                        val menu = binding.rightMenu
+                        val menuWidth = if (menu.width > 0) menu.width else rightMenuWidth
+                        val screenWidth = binding.root.width
+                        val inRightMenu = { x: Float ->
+                            x >= screenWidth - menuWidth && x <= screenWidth
+                        }
+                        if (inRightMenu(twoFingerStartX) && inRightMenu(secondFingerStartX)) {
+                            if (dx < 0) {
+                                if (binding.rightMenu.visibility != View.VISIBLE) showRightMenu()
+                            } else {
+                                if (binding.rightMenu.isVisible) hideRightMenu()
+                            }
+                        }
+                    }
+                }
+            }
+
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_UP,
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> twoFingerTracking = false
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -324,9 +500,34 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // 亮暗切换时 FCLActivity.onConfigurationChanged 会调 refreshTheme，
+        // 背景由 themeRefreshListener 统一刷新；强制亮/暗模式（AppCompat 不触发
+        // onConfigurationChanged）由 LauncherSettingPage 切换时显式 refreshTheme
+    }
+
+    /** 按当前亮暗模式加载主界面背景（Theme.getBackground 按亮暗动态返回）。
+     *  ThemeEngine 的刷新回调是全局 Handler 异步排队，Activity 销毁后仍未执行的
+     *  回调无法通过 onDestroy 注销取消，这里需防 Glide 对已销毁 Activity 加载崩溃 */
+    private fun loadBackground() {
+        if (isDestroyed || isFinishing) return
+        ImageUtil.loadInto(
+            binding.background,
+            ThemeEngine.getInstance().getTheme().getBackground(this)
+        )
+    }
+
+    /** 主题刷新时重新加载背景与按钮配色（onDestroy 注销，防止持有已销毁实例） */
+    private val themeRefreshListener = Runnable {
+        loadBackground()
+        updateColor()
+    }
+
     override fun onDestroy() {
         dismissAutoLaunchCountdown()
         super.onDestroy()
+        ThemeEngine.getInstance().removeRefreshListener(themeRefreshListener)
         if (shouldPlayVideo()) {
             mediaPlayer = null
             binding.videoView.stopPlayback()
@@ -335,13 +536,6 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
 
     override fun onSelect(view: FCLMenuView) {
         refreshMenuView(view)
-        val speed = ThemeEngine.getInstance().getTheme().animationSpeed
-        AnimUtil.playRotation(view, speed * 100L, 0f, 360f)
-            .interpolator(OvershootInterpolator()).start()
-        AnimUtil.playScaleX(view, speed * 100L, 1f, 2f, 1f)
-            .start()
-        AnimUtil.playScaleY(view, speed * 100L, 1f, 2f, 1f)
-            .start()
         binding.apply {
             when (view) {
                 home -> {
@@ -385,6 +579,126 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         }
     }
 
+    /**
+     * 点击左侧菜单项时播放的选中动画（旋转 + 缩放），重复点击可无限触发
+     */
+    private fun playMenuAnim(view: FCLMenuView) {
+        val speed = ThemeEngine.getInstance().getTheme().animationSpeed
+        AnimUtil.playRotation(view, speed * 100L, 0f, 360f)
+            .interpolator(OvershootInterpolator()).start()
+        AnimUtil.playScaleX(view, speed * 100L, 1f, 2f, 1f).start()
+        AnimUtil.playScaleY(view, speed * 100L, 1f, 2f, 1f).start()
+    }
+
+    private fun showRightMenu() {
+        val menu = binding.rightMenu
+        menu.visibility = View.VISIBLE
+        menu.translationX = rightMenuWidth.toFloat()
+        menu.animate().translationX(0f).setDuration(200).start()
+        fixSkinViewerPosition(false)
+    }
+
+    private fun hideRightMenu() {
+        val menu = binding.rightMenu
+        rightMenuWidth = menu.width
+        // 记录皮肤当前宽度（隐藏后内容区扩展，用于固定皮肤位置）
+        val ui = UIManager.instance.currentUI
+        if (ui is MainUI) {
+            skinViewerWidth = ui.contentView.findViewById<View>(R.id.skin_viewer).width
+        }
+        menu.animate().translationX(rightMenuWidth.toFloat()).setDuration(200).withEndAction {
+            menu.visibility = View.GONE
+            menu.translationX = 0f
+            fixSkinViewerPosition(true)
+        }.start()
+    }
+
+    /**
+     * right_menu 隐藏时内容区扩展为全宽，但皮肤预览固定在原位置：
+     * 宽度保持原值，end 侧留出菜单宽度。
+     */
+    private fun fixSkinViewerPosition(fix: Boolean) {
+        val ui = UIManager.instance.currentUI
+        if (ui !is MainUI) return
+        val skin = ui.contentView.findViewById<View>(R.id.skin_viewer)
+        val params = skin.layoutParams as ConstraintLayout.LayoutParams
+        if (fix) {
+            params.width = skinViewerWidth
+            params.matchConstraintPercentWidth = -1f
+            params.marginEnd = rightMenuWidth
+        } else {
+            params.width = 0
+            params.matchConstraintPercentWidth = 0.5f
+            params.marginEnd = 0
+        }
+        skin.layoutParams = params
+    }
+
+    /** 展开下载面板：常规内容向下滑出、面板自上方滑入；右菜单隐藏或尚未布局时静态切换 */
+    private fun openDownloadPanel() {
+        if (downloadPanelOpen) return
+        binding.apply {
+            val menuReady = rightMenu.visibility == View.VISIBLE &&
+                rightMenuContent.height > 0 && downloadPanel.height > 0
+            if (!menuReady) {
+                // 菜单隐藏或首帧未布局（如通知冷启动）：面板直接作为列内容（随菜单）出现
+                rightMenuContent.visibility = View.INVISIBLE
+                downloadPanel.apply { visibility = View.VISIBLE; translationY = 0f }
+                if (rightMenu.visibility != View.VISIBLE) showRightMenu()
+            } else {
+                // 常规内容向下滑出
+                rightMenuContent.animate().translationY(rightMenuContent.height.toFloat())
+                    .setDuration(200)
+                    .withEndAction {
+                        // 期间可能已被收起，仅在仍处于展开态时收尾
+                        if (downloadPanelOpen) {
+                            rightMenuContent.visibility = View.INVISIBLE
+                            rightMenuContent.translationY = 0f
+                        }
+                    }
+                    .start()
+                // 面板自上方滑入
+                downloadPanel.visibility = View.VISIBLE
+                downloadPanel.translationY = -downloadPanel.height.toFloat()
+                downloadPanel.animate().translationY(0f).setDuration(200).start()
+            }
+            downloadPanelOpen = true
+        }
+    }
+
+    /** 收起下载面板：面板向上滑出、常规内容自下方滑入；波浪指示器按任务状态恢复 */
+    private fun closeDownloadPanel() {
+        if (!downloadPanelOpen) return
+        binding.apply {
+            val menuReady = rightMenu.visibility == View.VISIBLE &&
+                rightMenuContent.height > 0 && downloadPanel.height > 0
+            if (!menuReady) {
+                // 菜单隐藏或尚未布局：直接静态恢复内容
+                downloadPanel.apply { visibility = View.INVISIBLE; translationY = 0f }
+                rightMenuContent.visibility = View.VISIBLE
+                downloadWaveProgress.visibility = if (hasTasks) View.VISIBLE else View.GONE
+            } else {
+                // 面板自上方滑出
+                downloadPanel.animate().translationY(-downloadPanel.height.toFloat())
+                    .setDuration(200)
+                    .withEndAction {
+                        // 期间可能已被重新展开，仅在仍处于收起态时收尾
+                        if (!downloadPanelOpen) {
+                            downloadPanel.visibility = View.INVISIBLE
+                            downloadPanel.translationY = 0f
+                        }
+                    }
+                    .start()
+                // 常规内容自下方滑入（波浪显隐按当前任务状态决定）
+                downloadWaveProgress.visibility = if (hasTasks) View.VISIBLE else View.GONE
+                rightMenuContent.visibility = View.VISIBLE
+                rightMenuContent.translationY = rightMenuContent.height.toFloat()
+                rightMenuContent.animate().translationY(0f).setDuration(200).start()
+            }
+            downloadPanelOpen = false
+        }
+    }
+
     fun refreshMenuView(view: FCLMenuView?) {
         binding.leftMenu.forEach {
             if (it is FCLMenuView && it != view) {
@@ -410,7 +724,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             }
             if (view === jar) {
                 if (sharedPreferences.getBoolean("showJarExecutorWarnDialog", true)) {
-                    showWarningDialog(this@MainActivity, getString(R.string.jar_executor_warn)){
+                    showWarningDialog(this@MainActivity, getString(R.string.jar_executor_warn)) {
                         sharedPreferences.edit {
                             putBoolean("showJarExecutorWarnDialog", false)
                         }
@@ -425,18 +739,14 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             }
             if (view === goSetting) {
                 val profile = Profiles.getSelectedProfile()
-                if (profile.versionSetting.isGlobal) {
+                if (profile.versionSetting.isUsesGlobal) {
                     setting.isSelected = true
-                    uiManager.settingUI.runAfterInit {
-                        val tab = uiManager.settingUI.tabLayout.getTabAt(0)
-                        uiManager.settingUI.tabLayout.selectTab(tab)
-                    }
+                    val tab = uiManager.settingUI.tabLayout.getTabAt(0)
+                    uiManager.settingUI.tabLayout.selectTab(tab)
                 } else {
                     manage.isSelected = true
-                    uiManager.manageUI.runAfterInit {
-                        val tab = uiManager.manageUI.tabLayout.getTabAt(0)
-                        uiManager.manageUI.tabLayout.selectTab(tab)
-                    }
+                    val tab = uiManager.manageUI.tabLayout.getTabAt(0)
+                    uiManager.manageUI.tabLayout.selectTab(tab)
                 }
             }
         }
@@ -575,7 +885,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                         accountHint.text = getString(R.string.account_state_add)
                         avatar.setBackgroundDrawable(
                             TexturesLoader.toAvatar(
-                                TexturesLoader.getDefaultSkin(TextureModel.ALEX).image,
+                                TexturesLoader.getDefaultSkin(TextureModel.ALEX).image(),
                                 ConvertUtils.dip2px(
                                     this@MainActivity, 52f
                                 )
@@ -639,13 +949,13 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                     val libraryId = mark.libraryId
                     val libraryVersion = mark.libraryVersion
                     if (libraryId == LibraryType.MINECRAFT.patchId) continue
-                    if (AndroidUtils.hasStringId(
+                    if (hasStringId(
                             this@MainActivity,
                             "install_installer_" + libraryId.replace("-", "_")
                         )
                     ) {
                         libraries.append(", ").append(
-                            AndroidUtils.getLocalizedText(
+                            getLocalizedText(
                                 this@MainActivity,
                                 "install_installer_" + libraryId.replace("-", "_")
                             )
@@ -681,9 +991,12 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     }
 
     private fun setupVersionDisplay() {
-        holder.add(FXUtils.onWeakChangeAndOperate(Profiles.selectedVersionProperty()) { s: String? ->
-            lifecycleScope.launch { loadVersion(s) }
-        })
+        // 选中版本变化时刷新主界面版本显示（Repository 单例 StateFlow，随 Activity 生命周期取消）
+        lifecycleScope.launch {
+            Profiles.selectedVersion.collect { s ->
+                loadVersion(s)
+            }
+        }
     }
 
     private fun accountSubtitle(context: Context, account: Account): ObservableValue<String> {
@@ -700,6 +1013,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     }
 
     private fun updateColor() {
+        if (isDestroyed || isFinishing) return
         binding.apply {
             start.background = createBackground()
             createBackground().apply {
@@ -707,62 +1021,14 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 jar.background = this
             }
             version.backgroundTintList =
-                ColorStateList.valueOf(ThemeEngine.getInstance().theme.color2).apply {
+                ColorStateList.valueOf(ThemeEngine.getInstance().getTheme().getColor2()).apply {
                     version.backgroundTintList = this
                     jar.backgroundTintList = this
                 }
-            version.setTextColor(ThemeEngine.getInstance().theme.color2)
-            jar.setTextColor(ThemeEngine.getInstance().theme.color2)
+            version.setTextColor(ThemeEngine.getInstance().getTheme().getColor2())
+            jar.setTextColor(ThemeEngine.getInstance().getTheme().getColor2())
         }
 
-    }
-
-    private fun initBackground() {
-        theme = object : IntegerPropertyBase() {
-            override fun invalidated() {
-                get()
-                updateColor()
-            }
-
-            override fun getBean(): Any {
-                return this
-            }
-
-            override fun getName(): String {
-                return "theme"
-            }
-        }
-        theme2 = object : IntegerPropertyBase() {
-            override fun invalidated() {
-                get()
-                updateColor()
-            }
-
-            override fun getBean(): Any {
-                return this
-            }
-
-            override fun getName(): String {
-                return "theme2"
-            }
-        }
-        theme2Dark = object : IntegerPropertyBase() {
-            override fun invalidated() {
-                get()
-                updateColor()
-            }
-
-            override fun getBean(): Any {
-                return this
-            }
-
-            override fun getName(): String {
-                return "theme2Dark"
-            }
-        }
-        theme.bind(ThemeEngine.getInstance().theme.colorProperty())
-        theme2.bind(ThemeEngine.getInstance().theme.color2Property())
-        theme2Dark.bind(ThemeEngine.getInstance().theme.color2DarkProperty())
     }
 
     private fun createBackground(): GradientDrawable {
@@ -772,14 +1038,14 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             cornerRadius = ConvertUtils.dip2px(this@MainActivity, 8f).toFloat()
             setStroke(
                 ConvertUtils.dip2px(this@MainActivity, 1f),
-                ThemeEngine.getInstance().theme.color2
+                ThemeEngine.getInstance().getTheme().getColor2()
             )
         }
     }
 
     private fun playAnim() {
         binding.apply {
-            val speed = ThemeEngine.getInstance().theme.animationSpeed
+            val speed = ThemeEngine.getInstance().getTheme().animationSpeed
             AnimUtil.playTranslationX(
                 listOf(leftMenu),
                 speed * 100L,
@@ -820,31 +1086,6 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             ).forEachIndexed { index, objectAnimator ->
                 objectAnimator.interpolator(BounceInterpolator()).startAfter((index + 1) * 100L)
             }
-        }
-    }
-
-    private fun shareLog() {
-        try {
-            val file = File(FCLPath.LOG_DIR).resolve("latest_game.log")
-            if (!file.exists()) return
-            val intent = Intent(Intent.ACTION_SEND)
-
-            val uri = FileProvider.getUriForFile(
-                this,
-                "${application.packageName}.provider",
-                file
-            )
-            intent.type = "text/plain"
-            intent.putExtra(Intent.EXTRA_STREAM, uri)
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    getString(com.tungsten.fcllibrary.R.string.crash_reporter_share)
-                )
-            )
-        } catch (e: Exception) {
-            LOG.log(Level.INFO, "Share error: $e")
         }
     }
 
@@ -930,22 +1171,18 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         ).show()
         binding.download.isSelected = true
         val downloadUI = uiManager.downloadUI
-        downloadUI.runAfterInit {
-            val page = LocalModpackPage(
-                this,
-                PageManager.PAGE_ID_TEMP,
-                downloadUI.container,
-                R.layout.page_modpack,
-                profile,
-                null,
-                file
-            )
-            downloadUI.pageManager.showTempPage(page)
-        }
+        val page = LocalModpackPage(
+            this,
+            FCLPage.PAGE_ID_TEMP,
+            if (::profile.isInitialized) profile else Profiles.getSelectedProfile(),
+            null,
+            file
+        )
+        downloadUI.showTempPage(page)
     }
 
     private fun refreshScreenSize() {
-        DisplayUtil.screenWidth =  binding.root.width
+        DisplayUtil.screenWidth = binding.root.width
         DisplayUtil.screenHeight = binding.root.height
     }
 }

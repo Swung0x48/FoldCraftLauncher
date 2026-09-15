@@ -29,5 +29,8 @@ google-services.json
 *.hprof
 FCL/src/main/java/com/mio/Main.kt
 .DS_Store
-/LWJGL-Pojav/bin
-LWJGL-Pojav/compileOnly/jspecify-1.0.0.jar
+AGENTS.md
+
+# ZCode 会话文件
+/.zcode/
+.kotlin/

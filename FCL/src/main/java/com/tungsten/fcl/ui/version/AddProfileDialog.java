@@ -1,6 +1,7 @@
 package com.tungsten.fcl.ui.version;
 
 import android.content.Context;
+import com.tungsten.fcl.ui.UIManager;
 import android.view.View;
 import android.widget.Toast;
 
@@ -21,11 +22,11 @@ import java.io.File;
 
 public class AddProfileDialog extends FCLDialog implements View.OnClickListener {
 
-    private FCLEditText editText;
-    private FCLTextView pathText;
-    private FCLImageButton editPath;
-    private FCLButton positive;
-    private FCLButton negative;
+    private final FCLEditText editText;
+    private final FCLTextView pathText;
+    private final FCLImageButton editPath;
+    private final FCLButton positive;
+    private final FCLButton negative;
 
     public AddProfileDialog(@NonNull Context context) {
         super(context);
@@ -45,7 +46,8 @@ public class AddProfileDialog extends FCLDialog implements View.OnClickListener 
     public void onClick(View view) {
         if (view == editPath) {
             MainActivity.getInstance().fileLauncher.launchSingleSelection(null, null, true, files -> {
-                pathText.setText(files.get(0));
+                if (files == null) return;
+                pathText.setText(files.get(0).getPath());
             });
         }
         if (view == positive) {
@@ -54,8 +56,8 @@ public class AddProfileDialog extends FCLDialog implements View.OnClickListener 
             } else if (Profiles.getProfiles().stream().anyMatch(profile -> profile.getName().equals(editText.getText().toString()))) {
                 Toast.makeText(getContext(), getContext().getString(R.string.profile_already_exist), Toast.LENGTH_SHORT).show();
             } else {
-                Profiles.getProfiles().add(new Profile(editText.getText().toString(), new File(pathText.getText().toString())));
-                ((VersionListPage) VersionPageManager.getInstance().getAllPages().get(0)).refreshProfile();
+                Profiles.addProfile(new Profile(editText.getText().toString(), new File(pathText.getText().toString())));
+                ((VersionListPage) UIManager.getInstance().getVersionUI().getPage(0)).refreshProfile();
                 dismiss();
             }
         }

@@ -10,24 +10,21 @@ import android.widget.ScrollView;
 import android.widget.Toast;
 
 import com.tungsten.fcl.R;
-import com.tungsten.fcl.setting.Profile;
-import com.tungsten.fcl.ui.PageManager;
+import com.tungsten.fcl.setting.Profiles;
 import com.tungsten.fcl.ui.UIManager;
-import com.tungsten.fcl.ui.download.DownloadPageManager;
-import com.tungsten.fcl.util.AndroidUtils;
+import com.mio.util.AndroidUtilKt;
 import com.tungsten.fclcore.mod.RemoteMod;
 import com.tungsten.fclcore.task.Schedulers;
 import com.tungsten.fclcore.task.Task;
 import com.tungsten.fclcore.util.Lang;
 import com.tungsten.fclcore.util.Pair;
 import com.tungsten.fcllibrary.component.theme.ThemeEngine;
-import com.tungsten.fcllibrary.component.ui.FCLTempPage;
+import com.tungsten.fcllibrary.component.ui.FCLPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
 import com.tungsten.fcllibrary.component.view.FCLImageButton;
 import com.tungsten.fcllibrary.component.view.FCLLinearLayout;
 import com.tungsten.fcllibrary.component.view.FCLProgressBar;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
-import com.tungsten.fcllibrary.component.view.FCLUILayout;
 import com.tungsten.fcllibrary.util.ConvertUtils;
 
 import java.util.ArrayList;
@@ -35,7 +32,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
 
-public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickListener {
+public class RemoteModDownloadPage extends FCLPage implements View.OnClickListener {
 
     public static final EnumMap<RemoteMod.DependencyType, String> STRING_ID_KEY = new EnumMap<>(Lang.mapOf(
             Pair.pair(RemoteMod.DependencyType.EMBEDDED, "mods_dependency_embedded"),
@@ -47,7 +44,6 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
             Pair.pair(RemoteMod.DependencyType.BROKEN, "mods_dependency_broken")
     ));
 
-    private final Profile.ProfileVersion version;
     private final RemoteMod.Version modVersion;
     private final RemoteModVersionPage.DownloadCallback callback;
     private final RemoteModVersionPage lastPage;
@@ -62,25 +58,31 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
     private FCLImageButton retry;
     private FCLButton download;
     private FCLButton saveAs;
-    private FCLButton cancel;
+    private FCLButton downloadAll;
     private FCLButton back;
 
-    public RemoteModDownloadPage(Context context, int id, FCLUILayout parent, int resId, Profile.ProfileVersion version, RemoteMod.Version modVersion, RemoteModVersionPage.DownloadCallback callback, RemoteModVersionPage lastPage, DownloadPage downloadPage) {
-        super(context, id, parent, resId);
-        this.version = version;
+    public RemoteModDownloadPage(Context context, int id, RemoteMod.Version modVersion, RemoteModVersionPage.DownloadCallback callback, RemoteModVersionPage lastPage, DownloadPage downloadPage) {
+        super(context, id, R.layout.page_download_addon);
         this.modVersion = modVersion;
         this.callback = callback;
         this.lastPage = lastPage;
         this.downloadPage = downloadPage;
 
         create();
+
+        // 原 onStart 逻辑：页面构造即填充内容并加载依赖
+        name.setText(modVersion.name());
+        tag.setText(ModVersionAdapter.getTag(getContext(), modVersion));
+        date.setText(ModVersionAdapter.FORMATTER.format(modVersion.datePublished()));
+
+        loadDependencies(modVersion);
     }
 
     private void loadDependencies(RemoteMod.Version version) {
         setLoading(true, false);
         Task.supplyAsync(() -> {
             EnumMap<RemoteMod.DependencyType, List<RemoteMod>> dependencies = new EnumMap<>(RemoteMod.DependencyType.class);
-            for (RemoteMod.Dependency dependency : version.getDependencies()) {
+            for (RemoteMod.Dependency dependency : version.dependencies()) {
                 if (dependency.getType() == RemoteMod.DependencyType.INCOMPATIBLE || dependency.getType() == RemoteMod.DependencyType.BROKEN) {
                     continue;
                 }
@@ -94,9 +96,9 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
 
             return dependencies;
         }).whenComplete(Schedulers.androidUIThread(), (result, exception) -> {
-            setLoading(false, result.keySet().size() > 0);
+            setLoading(false, !result.isEmpty());
             if (exception == null) {
-                if (result.keySet().size() > 0) {
+                if (!result.isEmpty()) {
                     loadDependencyList(result);
                 }
             } else {
@@ -116,7 +118,7 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
                 preSplit.setBackgroundColor(getContext().getColor(android.R.color.darker_gray));
                 dependencyContainer.addView(preSplit, ViewGroup.LayoutParams.MATCH_PARENT, ConvertUtils.dip2px(getContext(), 1));
             }
-            String text = AndroidUtils.getLocalizedText(getContext(), STRING_ID_KEY.get(type));
+            String text = AndroidUtilKt.getLocalizedText(getContext(), STRING_ID_KEY.get(type));
             FCLTextView textView = new FCLTextView(getContext());
             int padding = ConvertUtils.dip2px(getContext(), 10);
             textView.setPadding(padding, padding, padding, padding);
@@ -130,8 +132,8 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
             listView.setDivider(new ColorDrawable(getContext().getColor(android.R.color.darker_gray)));
             listView.setDividerHeight(ConvertUtils.dip2px(getContext(), 1));
             DependencyAdapter adapter = new DependencyAdapter(getContext(), downloadPage, dependencies.get(type), mod -> {
-                RemoteModInfoPage page = new RemoteModInfoPage(getContext(), PageManager.PAGE_ID_TEMP, getParent(), R.layout.page_download_addon_info, downloadPage, mod, version, callback);
-                DownloadPageManager.getInstance().showTempPage(page);
+                RemoteModInfoPage page = new RemoteModInfoPage(getContext(), FCLPage.PAGE_ID_TEMP, downloadPage, mod, callback);
+                UIManager.getInstance().getDownloadUI().showTempPage(page);
             });
             listView.setAdapter(adapter);
             dependencyContainer.addView(listView, ViewGroup.LayoutParams.MATCH_PARENT, getListViewHeight(listView));
@@ -155,12 +157,12 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
         retry = findViewById(R.id.retry);
         download = findViewById(R.id.download);
         saveAs = findViewById(R.id.save_as);
-        cancel = findViewById(R.id.cancel);
+        downloadAll = findViewById(R.id.download_all);
         back = findViewById(R.id.back);
         retry.setOnClickListener(this);
         download.setOnClickListener(this);
         saveAs.setOnClickListener(this);
-        cancel.setOnClickListener(this);
+        downloadAll.setOnClickListener(this);
         back.setOnClickListener(this);
 
         ThemeEngine.getInstance().registerEvent(dependencyLayout, () -> dependencyLayout.setBackgroundTintList(new ColorStateList(new int[][]{{}}, new int[]{ThemeEngine.getInstance().getTheme().getLtColor()})));
@@ -185,24 +187,8 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-
-        name.setText(modVersion.getName());
-        tag.setText(ModVersionAdapter.getTag(getContext(), modVersion));
-        date.setText(ModVersionAdapter.FORMATTER.format(modVersion.getDatePublished()));
-
-        loadDependencies(modVersion);
-    }
-
-    @Override
     public Task<?> refresh(Object... param) {
         return null;
-    }
-
-    @Override
-    public void onRestart() {
-
     }
 
     @Override
@@ -216,8 +202,9 @@ public class RemoteModDownloadPage extends FCLTempPage implements View.OnClickLi
         if (view == saveAs) {
             lastPage.saveAs(modVersion);
         }
-        if (view == cancel) {
-            UIManager.getInstance().onBackPressed();
+        if (view == downloadAll) {
+            // 一键下载：主模组 + 全部必需前置一起入队
+            downloadPage.downloadWithDependencies(downloadPage.getContext(), Profiles.getSelectedProfile(), null, modVersion, "mods");
         }
         if (view == back) {
             back.setEnabled(false);

@@ -4,7 +4,6 @@ import static com.tungsten.fclcore.util.Logging.LOG;
 
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.util.Log;
 
 import com.mio.JavaManager;
@@ -13,7 +12,7 @@ import com.tungsten.fcl.activity.JVMActivity;
 import com.tungsten.fcl.control.MenuType;
 import com.tungsten.fcl.setting.Profile;
 import com.tungsten.fcl.setting.Profiles;
-import com.tungsten.fcl.util.AndroidUtils;
+import com.mio.util.AndroidUtilKt;
 import com.tungsten.fclauncher.bridge.FCLBridge;
 import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.game.JavaVersion;
@@ -34,14 +33,11 @@ public class JarExecutorHelper {
     public static void start(FCLActivity activity) {
         ArrayList<String> suffix = new ArrayList<>();
         suffix.add(".jar");
-        activity.fileLauncher.launchSingleSelection( null, suffix, files -> {
-            String path = files.get(0);
-            Uri uri = Uri.parse(path);
-            if (AndroidUtils.isDocUri(uri)) {
-                path = AndroidUtils.copyFileToDir(activity, uri, new File(FCLPath.CACHE_DIR));
-            }
-            if (new File(path).exists()) {
-                launchJarExecutor(activity, new File(path));
+        activity.fileLauncher.launchSingleSelection(null, suffix, files -> {
+            if (files == null) return;
+            File file = files.get(0).toFile(activity, new File(FCLPath.CACHE_DIR));
+            if (file.exists()) {
+                launchJarExecutor(activity, file);
             }
         });
     }
@@ -77,7 +73,7 @@ public class JarExecutorHelper {
         }
         Profile profile = Profiles.getSelectedProfile();
         if (profile != null) {
-            String java = profile.getGlobal().getJava();
+            String java = profile.getGlobalVersionSetting().getJava();
             if (!java.equals(JavaVersion.JAVA_AUTO.getName())) {
                 javaVersion = JavaManager.getJavaFromVersionName(java).getVersion();
             }

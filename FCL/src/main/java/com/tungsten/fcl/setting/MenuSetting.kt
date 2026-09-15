@@ -11,290 +11,248 @@ import com.google.gson.JsonSerializer
 import com.google.gson.annotations.JsonAdapter
 import com.tungsten.fcl.control.GestureMode
 import com.tungsten.fcl.control.MouseMoveMode
-import com.tungsten.fclcore.fakefx.beans.InvalidationListener
-import com.tungsten.fclcore.fakefx.beans.property.BooleanProperty
-import com.tungsten.fclcore.fakefx.beans.property.DoubleProperty
-import com.tungsten.fclcore.fakefx.beans.property.IntegerProperty
-import com.tungsten.fclcore.fakefx.beans.property.ObjectProperty
-import com.tungsten.fclcore.fakefx.beans.property.SimpleBooleanProperty
-import com.tungsten.fclcore.fakefx.beans.property.SimpleDoubleProperty
-import com.tungsten.fclcore.fakefx.beans.property.SimpleIntegerProperty
-import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty
 import java.lang.reflect.Type
 
+/**
+ * 游戏内菜单设置数据模型。
+ *
+ * 使用普通类型字段替代原 fakefx property，属性变化通过 [addOnChangeListener] 通知
+ * （用于自动保存与页面刷新），不再依赖 fakefx 监听机制。
+ */
 @JsonAdapter(MenuSetting.Serializer::class)
 class MenuSetting {
-    val autoFitProperty: BooleanProperty = SimpleBooleanProperty(this, "autoFit", true)
-    var isAutoFit: Boolean
-        get() = autoFitProperty.get()
-        set(autoFit) {
-            autoFitProperty.set(autoFit)
+    var isAutoFit: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val autoFitDistProperty: IntegerProperty = SimpleIntegerProperty(this, "autoFitDist", 0)
-    var autoFitDist: Int
-        get() = autoFitDistProperty.get()
-        set(autoFitDist) {
-            autoFitDistProperty.set(autoFitDist)
+    var autoFitDist: Int = 0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val lockMenuViewProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "lockMenuView", false)
-    var isLockMenuView: Boolean
-        get() = lockMenuViewProperty.get()
-        set(lockMenuView) {
-            lockMenuViewProperty.set(lockMenuView)
+    var isLockMenuView: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val hideMenuViewViewProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "hideMenuView", false)
-    var isHideMenuView: Boolean
-        get() = hideMenuViewViewProperty.get()
-        set(hideMenuView) {
-            hideMenuViewViewProperty.set(hideMenuView)
+    var isHideMenuView: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val showFpsProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "showFps", false)
-    var isShowFps: Boolean
-        get() = showFpsProperty.get()
-        set(v) {
-            showFpsProperty.set(v)
+    var isShowFps: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val showMemoryProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "showMemory", false)
-    var isShowMemory: Boolean
-        get() = showMemoryProperty.get()
-        set(v) {
-            showMemoryProperty.set(v)
+    var isShowMemory: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val disableSoftKeyAdjustProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "disableSoftKeyAdjust", false)
-    var isDisableSoftKeyAdjust: Boolean
-        get() = disableSoftKeyAdjustProperty.get()
-        set(disableSoftKeyAdjust) {
-            disableSoftKeyAdjustProperty.set(disableSoftKeyAdjust)
+    var isDisableSoftKeyAdjust: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val showLogProperty: BooleanProperty = SimpleBooleanProperty(this, "showLog", false)
-    var isShowLog: Boolean
-        get() = showLogProperty.get()
-        set(showLog) {
-            showLogProperty.set(showLog)
+    var isShowLog: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val autoShowLogProperty: BooleanProperty = SimpleBooleanProperty(this, "autoShowLog", false)
-    var isAutoShowLog: Boolean
-        get() = autoShowLogProperty.get()
-        set(v) {
-            autoShowLogProperty.set(v)
+    var isAutoShowLog: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val performanceModeProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "performanceMode", false)
-    var isPerformanceMode
-        get() = performanceModeProperty.get()
-        set(v) {
-            performanceModeProperty.set(v)
+    var isPerformanceMode: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val menuPositionXProperty: DoubleProperty =
-        SimpleDoubleProperty(this, "menuPositionX", 0.5)
-    var menuPositionX: Double
-        get() = menuPositionXProperty.get()
-        set(menuPositionX) {
-            menuPositionXProperty.set(menuPositionX)
+    var menuPositionX: Double = 0.5
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val menuPositionYProperty: DoubleProperty =
-        SimpleDoubleProperty(this, "menuPositionY", 0.5)
-    var menuPositionY: Double
-        get() = menuPositionYProperty.get()
-        set(menuPositionY) {
-            menuPositionYProperty.set(menuPositionY)
+    var menuPositionY: Double = 0.5
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val disableGestureProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "disableGesture", false)
-    var isDisableGesture: Boolean
-        get() = disableGestureProperty.get()
-        set(disableGesture) {
-            disableGestureProperty.set(disableGesture)
+    var isDisableGesture: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val disableBEGestureProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "disableBEGesture", false)
-    var isDisableBEGesture: Boolean
-        get() = disableBEGestureProperty.get()
-        set(disableBEGesture) {
-            disableBEGestureProperty.set(disableBEGesture)
+    var gestureMode: GestureMode = GestureMode.BUILD
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val gestureModeProperty: ObjectProperty<GestureMode> =
-        SimpleObjectProperty(this, "gestureMode", GestureMode.BUILD)
-    var gestureMode: GestureMode
-        get() = gestureModeProperty.get()
-        set(gestureMode) {
-            gestureModeProperty.set(gestureMode)
+    var isDisableLeftTouch: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val disableLeftTouchProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "disableLeftTouch", false)
-    var isDisableLeftTouch: Boolean
-        get() = disableLeftTouchProperty.get()
-        set(v) {
-            disableLeftTouchProperty.set(v)
+    var isEnableGyroscope: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val enableGyroscopeProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "enableGyroscope", false)
-    var isEnableGyroscope: Boolean
-        get() = enableGyroscopeProperty.get()
-        set(enableGyroscope) {
-            enableGyroscopeProperty.set(enableGyroscope)
+    var isInvertGyroscope: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val invertGyroscopeProperty: BooleanProperty =
-        SimpleBooleanProperty(this, "invertGyroscope", false)
-    var isInvertGyroscope: Boolean
-        get() = invertGyroscopeProperty.get()
-        set(v) {
-            invertGyroscopeProperty.set(v)
+    var gyroscopeSensitivity: Int = 10
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val gyroscopeSensitivityProperty: IntegerProperty =
-        SimpleIntegerProperty(this, "gyroscopeSensitivity", 10)
-    var gyroscopeSensitivity: Int
-        get() = gyroscopeSensitivityProperty.get()
-        set(gyroscopeSensitivity) {
-            gyroscopeSensitivityProperty.set(gyroscopeSensitivity)
+    var mouseMoveMode: MouseMoveMode = MouseMoveMode.CLICK
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val mouseMoveModeProperty: ObjectProperty<MouseMoveMode> =
-        SimpleObjectProperty(this, "mouseMoveMode", MouseMoveMode.CLICK)
-    var mouseMoveMode: MouseMoveMode
-        get() = mouseMoveModeProperty.get()
-        set(mouseMoveMode) {
-            mouseMoveModeProperty.set(mouseMoveMode)
+    var itemBarWidth: Int = 0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val itemBarWidthProperty: IntegerProperty =
-        SimpleIntegerProperty(this, "itemBarWidth", 0)
-    var itemBarWidth: Int
-        get() = itemBarWidthProperty.get()
-        set(v) {
-            itemBarWidthProperty.set(v)
+    var itemBarHeight: Int = 0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val itemBarHeightProperty: IntegerProperty =
-        SimpleIntegerProperty(this, "itemBarHeight", 0)
-    var itemBarHeight: Int
-        get() = itemBarHeightProperty.get()
-        set(v) {
-            itemBarHeightProperty.set(v)
+    var windowScale: Double = 1.0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val windowScaleProperty: DoubleProperty = SimpleDoubleProperty(this, "windowScale", 1.0)
-    var windowScale: Double
-        get() = windowScaleProperty.get()
-        set(windowScale) {
-            windowScaleProperty.set(windowScale)
+    var cursorOffset: Double = 0.0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val cursorOffsetProperty: DoubleProperty =
-        SimpleDoubleProperty(this, "cursorOffset", 0.0)
-    var cursorOffset: Double
-        get() = cursorOffsetProperty.get()
-        set(cursorOffset) {
-            cursorOffsetProperty.set(cursorOffset)
+    var mouseSensitivity: Double = 1.0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val mouseSensitivityProperty: DoubleProperty =
-        SimpleDoubleProperty(this, "mouseSensitivity", 1.0)
-    var mouseSensitivity: Double
-        get() = mouseSensitivityProperty.get()
-        set(mouseSensitivity) {
-            mouseSensitivityProperty.set(mouseSensitivity)
+    var mouseSensitivityCursor: Double = 2.0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val mouseSensitivityCursorProperty: DoubleProperty =
-        SimpleDoubleProperty(this, "mouseSensitivityCursor", 2.0)
-    var mouseSensitivityCursor: Double
-        get() = mouseSensitivityCursorProperty.get()
-        set(mouseSensitivityCursor) {
-            mouseSensitivityCursorProperty.set(mouseSensitivityCursor)
+    var mouseSize: Int = 15
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val mouseSizeProperty: IntegerProperty = SimpleIntegerProperty(this, "mouseSize", 15)
-    var mouseSize: Int
-        get() = mouseSizeProperty.get()
-        set(mouseSize) {
-            mouseSizeProperty.set(mouseSize)
+    var mouseOffsetX: Int = 0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val mouseOffsetXProperty: IntegerProperty = SimpleIntegerProperty(this, "mouseOffsetX", 15)
-    var mouseOffsetX: Int
-        get() = mouseOffsetXProperty.get()
-        set(v) {
-            mouseOffsetXProperty.set(v)
+    var mouseOffsetY: Int = 0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val mouseOffsetYProperty: IntegerProperty = SimpleIntegerProperty(this, "mouseOffsetY", 15)
-    var mouseOffsetY: Int
-        get() = mouseOffsetYProperty.get()
-        set(v) {
-            mouseOffsetYProperty.set(v)
+    var isPhysicalMouseMode: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val physicalMouseMode: BooleanProperty = SimpleBooleanProperty(this, "physicalMouseMode", false)
-    var isPhysicalMouseMode: Boolean
-        get() = physicalMouseMode.get()
-        set(v) {
-            physicalMouseMode.set(v)
+    var gamepadDeadzone: Double = 1.0
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    val gamepadDeadzoneProperty: DoubleProperty =
-        SimpleDoubleProperty(this, "gamepadDeadzone", 1.0)
-    var gamepadDeadzone: Double
-        get() = gamepadDeadzoneProperty.get()
-        set(gamepadDeadzone) {
-            gamepadDeadzoneProperty.set(gamepadDeadzone)
+    /** 游戏内控件整体不透明度（百分比 10–100） */
+    var controlsOpacity: Int = 100
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
         }
 
-    fun addPropertyChangedListener(listener: InvalidationListener?) {
-        autoFitProperty.addListener(listener)
-        autoFitDistProperty.addListener(listener)
-        lockMenuViewProperty.addListener(listener)
-        hideMenuViewViewProperty.addListener(listener)
-        showFpsProperty.addListener(listener)
-        showMemoryProperty.addListener(listener)
-        disableSoftKeyAdjustProperty.addListener(listener)
-        showLogProperty.addListener(listener)
-        autoShowLogProperty.addListener(listener)
-        performanceModeProperty.addListener(listener)
-        menuPositionXProperty.addListener(listener)
-        menuPositionYProperty.addListener(listener)
-        disableGestureProperty.addListener(listener)
-        disableBEGestureProperty.addListener(listener)
-        gestureModeProperty.addListener(listener)
-        disableLeftTouchProperty.addListener(listener)
-        enableGyroscopeProperty.addListener(listener)
-        invertGyroscopeProperty.addListener(listener)
-        gyroscopeSensitivityProperty.addListener(listener)
-        mouseMoveModeProperty.addListener(listener)
-        mouseSensitivityProperty.addListener(listener)
-        mouseSensitivityCursorProperty.addListener(listener)
-        mouseSizeProperty.addListener(listener)
-        mouseOffsetXProperty.addListener(listener)
-        mouseOffsetYProperty.addListener(listener)
-        physicalMouseMode.addListener(listener)
-        itemBarWidthProperty.addListener(listener)
-        itemBarHeightProperty.addListener(listener)
-        windowScaleProperty.addListener(listener)
-        cursorOffsetProperty.addListener(listener)
-        gamepadDeadzoneProperty.addListener(listener)
+    private val changeListeners = mutableListOf<Runnable>()
+
+    /** 注册属性变化监听（替代原 fakefx property 监听，用于自动保存与页面刷新） */
+    fun addOnChangeListener(listener: Runnable) {
+        changeListeners.add(listener)
+    }
+
+    fun removeOnChangeListener(listener: Runnable) {
+        changeListeners.remove(listener)
+    }
+
+    private fun changed() {
+        // 复制后遍历：回调内可能增删监听，避免并发修改
+        changeListeners.toList().forEach { it.run() }
     }
 
     class Serializer : JsonSerializer<MenuSetting?>, JsonDeserializer<MenuSetting?> {
@@ -318,7 +276,6 @@ class MenuSetting {
                 addProperty("menuPositionX", src.menuPositionX)
                 addProperty("menuPositionY", src.menuPositionY)
                 addProperty("disableGesture", src.isDisableGesture)
-                addProperty("disableBEGesture", src.isDisableBEGesture)
                 addProperty("gestureMode", src.gestureMode.id)
                 addProperty("disableLeftTouch", src.isDisableLeftTouch)
                 addProperty("enableGyroscope", src.isEnableGyroscope)
@@ -336,6 +293,7 @@ class MenuSetting {
                 addProperty("windowScale", src.windowScale)
                 addProperty("cursorOffset", src.cursorOffset)
                 addProperty("gamepadDeadzone", src.gamepadDeadzone)
+                addProperty("controlsOpacity", src.controlsOpacity)
             }
         }
 
@@ -360,7 +318,6 @@ class MenuSetting {
                 ms.menuPositionX = json["menuPositionX"]?.asDouble ?: 0.5
                 ms.menuPositionY = json["menuPositionY"]?.asDouble ?: 0.5
                 ms.isDisableGesture = json["disableGesture"]?.asBoolean ?: false
-                ms.isDisableBEGesture = json["disableBEGesture"]?.asBoolean ?: false
                 ms.gestureMode = GestureMode.getById(json["gestureMode"]?.asInt ?: 0)
                 ms.isDisableLeftTouch = json["disableLeftTouch"]?.asBoolean ?: false
                 ms.isEnableGyroscope = json["enableGyroscope"]?.asBoolean ?: false
@@ -378,6 +335,7 @@ class MenuSetting {
                 ms.windowScale = json["windowScale"]?.asDouble ?: 1.0
                 ms.cursorOffset = json["cursorOffset"]?.asDouble ?: 0.0
                 ms.gamepadDeadzone = json["gamepadDeadzone"]?.asDouble ?: 0.2
+                ms.controlsOpacity = json["controlsOpacity"]?.asInt ?: 100
             }
         }
     }

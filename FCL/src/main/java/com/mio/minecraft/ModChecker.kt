@@ -2,10 +2,11 @@ package com.mio.minecraft
 
 import android.content.Context
 import com.mio.manager.RendererManager
+import com.mio.plugin.FFmpegPlugin
+import com.mio.plugin.NativeLibPlugin
 import com.mio.util.getElfArchFromZip
 import com.tungsten.fcl.R
 import com.tungsten.fclauncher.bridge.FCLBridge
-import com.tungsten.fclauncher.plugins.FFmpegPlugin
 import com.tungsten.fclauncher.utils.Architecture
 import com.tungsten.fclcore.mod.LocalModFile
 import com.tungsten.fclcore.util.versioning.GameVersionNumber
@@ -106,7 +107,10 @@ class ModChecker(val context: Context, val version: String) {
                         mod.file.toFile(),
                         "io/imgui/java/native-bin/libimgui-javaarm64.so"
                     )
-                    if (arch.isBlank())
+                    val pluginInstalled = NativeLibPlugin.pluginList.any {
+                        it.envMap.keys.any { key -> key.contains("imgui.library") }
+                    }
+                    if (arch.isBlank() && !pluginInstalled)
                         throw ModCheckException(
                             context.getString(
                                 R.string.mod_check_axiom,
