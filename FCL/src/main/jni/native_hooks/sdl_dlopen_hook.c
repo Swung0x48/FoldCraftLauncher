@@ -48,7 +48,17 @@ static void *customDlsym(void *handle, const char *symbol) {
     return result;
 }
 
+static bool allowSdlDlsymHook(const char *callerPath, void *arg) {
+    (void) arg;
+    if (callerPath == NULL) return true;
+    const char *name = strrchr(callerPath, '/');
+    name = name == NULL ? callerPath : name + 1;
+    // apitrace 使用 dlsym(RTLD_NEXT, "dlopen") 查找真实加载器。
+    // 经过本 hook 转发会改变调用者位置，可能重新找到 egltrace 的 dlopen 并无限递归。
+    return strcmp(name, "egltrace.so") != 0;
+}
+
 void create_sdl_dlopen_hooks(bytehook_hook_all_t hookAll) {
     if (hookAll == NULL) return;
-    hookAll(NULL, "dlsym", (void *) customDlsym, NULL, NULL);
+    bytehook_hook_partial(allowSdlDlsymHook, NULL, NULL, "dlsym", (void *) customDlsym, NULL, NULL);
 }
