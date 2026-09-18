@@ -17,7 +17,7 @@ import androidx.core.content.FileProvider;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.MainActivity;
 import com.tungsten.fcl.terracotta.Terracotta;
-import com.tungsten.fcl.util.AndroidUtils;
+import com.mio.util.AndroidUtilKt;
 import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.task.Task;
 import com.tungsten.fclcore.util.io.NetworkUtils;
@@ -25,7 +25,6 @@ import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.component.ui.FCLCommonUI;
 import com.tungsten.fcllibrary.component.view.FCLButton;
 import com.tungsten.fcllibrary.component.view.FCLSwitch;
-import com.tungsten.fcllibrary.component.view.FCLUILayout;
 
 import java.io.File;
 import java.util.Map;
@@ -46,8 +45,8 @@ public class MultiplayerUI extends FCLCommonUI implements View.OnClickListener, 
     private LinearLayoutCompat extraLayout;
     private FCLButton shareLog;
 
-    public MultiplayerUI(Context context, FCLUILayout parent, int id) {
-        super(context, parent, id);
+    public MultiplayerUI(Context context, int id) {
+        super(context, id);
     }
 
     @Override
@@ -126,17 +125,17 @@ public class MultiplayerUI extends FCLCommonUI implements View.OnClickListener, 
                     "v", "v1",
                     "launcher_version", versionName
             ));
-            AndroidUtils.openLink(getContext(), link);
+            AndroidUtilKt.openLink(getContext(), link);
         }
         if (v == btnEasytier) {
-            AndroidUtils.openLink(getContext(), "https://easytier.cn/");
+            AndroidUtilKt.openLink(getContext(), "https://easytier.cn/");
         }
 
         if (v == shareLog) {
             if (new File(FCLPath.LOG_DIR, "terracotta.log").exists()) {
                 Intent intent = new Intent(Intent.ACTION_SEND);
-                Uri uri = FileProvider.getUriForFile(getContext(), getContext().getString(com.tungsten.fcllibrary.R.string.file_browser_provider), new File(FCLPath.LOG_DIR, "terracotta.log"));
-                intent.setType(AndroidUtils.getMimeType(FCLPath.LOG_DIR + "/" + "terracotta.log"));
+                Uri uri = FileProvider.getUriForFile(getContext(), getContext().getString(com.tungsten.fcl.R.string.file_browser_provider), new File(FCLPath.LOG_DIR, "terracotta.log"));
+                intent.setType(AndroidUtilKt.getMimeType(FCLPath.LOG_DIR + "/" + "terracotta.log"));
                 intent.putExtra(Intent.EXTRA_STREAM, uri);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);

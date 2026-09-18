@@ -1,12 +1,15 @@
 package com.tungsten.fcl.ui.manage;
 
 import static com.tungsten.fclcore.util.Pair.pair;
+import com.tungsten.fcl.ui.UIManager;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.os.Environment;
 import android.view.View;
 import android.widget.ListView;
+
+import com.mio.download.DownloadManager;
 
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.ui.TaskDialog;
@@ -28,9 +31,8 @@ import com.tungsten.fclcore.util.Pair;
 import com.tungsten.fclcore.util.io.CSVTable;
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.component.theme.ThemeEngine;
-import com.tungsten.fcllibrary.component.ui.FCLTempPage;
+import com.tungsten.fcllibrary.component.ui.FCLPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
-import com.tungsten.fcllibrary.component.view.FCLUILayout;
 
 import java.io.File;
 import java.net.URL;
@@ -43,7 +45,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener {
+public class ModUpdatesPage extends FCLPage implements View.OnClickListener {
 
     private final ModListPage modListPage;
     private final ModManager modManager;
@@ -55,11 +57,14 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
     private FCLButton updateWithout;
     private FCLButton cancel;
 
-    public ModUpdatesPage(Context context, int id, FCLUILayout parent, int resId, ModListPage modListPage, ModManager modManager, List<LocalModFile.ModUpdate> list) {
-        super(context, id, parent, resId);
+    public ModUpdatesPage(Context context, int id, ModListPage modListPage, ModManager modManager, List<LocalModFile.ModUpdate> list) {
+        super(context, id, R.layout.page_mod_update);
         this.modListPage = modListPage;
         this.modManager = modManager;
         this.objects = FXCollections.observableList(list.stream().map(it -> new ModUpdateObject(getContext(), it)).collect(Collectors.toList()));
+
+        // 原 onStart 逻辑：页面构造即初始化列表
+        listView.setAdapter(new ModUpdateListAdapter(getContext(), objects));
     }
 
     @Override
@@ -79,19 +84,8 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        listView.setAdapter(new ModUpdateListAdapter(getContext(), objects));
-    }
-
-    @Override
     public Task<?> refresh(Object... param) {
         return null;
-    }
-
-    @Override
-    public void onRestart() {
-
     }
 
     @Override
@@ -106,7 +100,7 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
             updateMods(false);
         }
         if (v == cancel) {
-            ManagePageManager.getInstance().dismissCurrentTempPage();
+            UIManager.getInstance().getManageUI().dismissCurrentTempPage();
         }
     }
 
@@ -117,10 +111,8 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
                         .filter(o -> o.enabled.get())
                         .map(object -> pair(object.data.getLocalMod(), object.data.getCandidates().get(0)))
                         .collect(Collectors.toList()), keepOldVersion);
-        TaskDialog taskDialog = new TaskDialog(getContext(), TaskCancellationAction.NORMAL);
-        taskDialog.setTitle(getContext().getString(R.string.mods_check_updates_update));
         TaskExecutor executor = task.whenComplete(Schedulers.androidUIThread(), exception -> {
-            ManagePageManager.getInstance().dismissCurrentTempPage();
+            UIManager.getInstance().getManageUI().dismissCurrentTempPage();
             modListPage.refresh();
             if (!task.getFailedMods().isEmpty()) {
                 FCLAlertDialog.Builder builder = new FCLAlertDialog.Builder(getContext());
@@ -128,7 +120,7 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
                 builder.setCancelable(false);
                 builder.setTitle(getContext().getString(R.string.install_failed));
                 builder.setMessage(getContext().getString(R.string.mods_check_updates_failed) + "\n" + task.getFailedMods().stream().map(LocalModFile::getFileName).collect(Collectors.joining("\n")));
-                builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                builder.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), null);
                 builder.create().show();
             }
 
@@ -137,12 +129,11 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
                 builder.setAlertLevel(FCLAlertDialog.AlertLevel.INFO);
                 builder.setCancelable(false);
                 builder.setMessage(getContext().getString(R.string.install_success));
-                builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                builder.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), null);
                 builder.create().show();
             }
         }).executor();
-        taskDialog.setExecutor(executor);
-        taskDialog.show();
+        DownloadManager.submit(getContext().getString(R.string.mods_check_updates_update), task, executor);
         executor.start();
     }
 
@@ -180,7 +171,7 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
                 builder.setTitle(getContext().getString(R.string.message_error));
                 builder.setMessage(exception.getMessage());
             }
-            builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+            builder.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), null);
             builder.create().show();
         }).executor();
         taskDialog.setExecutor(executor);
@@ -201,9 +192,9 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
 
             enabled.set(!data.getLocalMod().getModManager().isDisabled(data.getLocalMod().getFile()));
             fileName.set(data.getLocalMod().getFileName());
-            currentVersion.set(data.getCurrentVersion().getVersion());
-            targetVersion.set(data.getCandidates().get(0).getVersion());
-            switch (data.getCurrentVersion().getSelf().getType()) {
+            currentVersion.set(data.getCurrentVersion().version());
+            targetVersion.set(data.getCandidates().get(0).version());
+            switch (data.getCurrentVersion().self().getType()) {
                 case CURSEFORGE:
                     source.set(context.getString(com.tungsten.fcl.R.string.mods_curseforge));
                     break;
@@ -290,15 +281,15 @@ public class ModUpdatesPage extends FCLTempPage implements View.OnClickListener 
                 dependents.add(Task
                         .runAsync(Schedulers.androidUIThread(), () -> local.setOld(true))
                         .thenComposeAsync(() -> {
-                            String fileName = remote.getFile().getFilename();
+                            String fileName = remote.file().filename();
                             if (isDisabled)
                                 fileName += ModManager.DISABLED_EXTENSION;
 
                             FileDownloadTask task = new FileDownloadTask(
-                                    new URL(remote.getFile().getUrl()),
+                                    new URL(remote.file().url()),
                                     modManager.getModsDirectory().resolve(fileName).toFile());
 
-                            task.setName(remote.getName());
+                            task.setName(remote.name());
                             return task;
                         })
                         .whenComplete(Schedulers.androidUIThread(), exception -> {

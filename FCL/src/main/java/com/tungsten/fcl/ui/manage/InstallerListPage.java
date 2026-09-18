@@ -3,7 +3,6 @@ package com.tungsten.fcl.ui.manage;
 import static com.tungsten.fcl.ui.download.version.VersionInstallInfoPage.alertFailureMessage;
 
 import android.content.Context;
-import android.net.Uri;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ScrollView;
@@ -16,13 +15,13 @@ import com.tungsten.fcl.activity.MainActivity;
 import com.tungsten.fcl.setting.DownloadProviders;
 import com.tungsten.fcl.setting.Profile;
 import com.tungsten.fcl.ui.InstallerItem;
-import com.tungsten.fcl.ui.PageManager;
 import com.tungsten.fcl.ui.TaskDialog;
-import com.tungsten.fcl.util.AndroidUtils;
+import com.tungsten.fcl.ui.UIManager;
+import com.mio.util.AndroidUtilKt;
 import com.tungsten.fcl.util.TaskCancellationAction;
 import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.download.LibraryAnalyzer;
-import com.tungsten.fclcore.download.RemoteVersion;
+import com.tungsten.fclcore.download.ComponentRemoteVersion;
 import com.tungsten.fclcore.event.Event;
 import com.tungsten.fclcore.game.Version;
 import com.tungsten.fclcore.task.Schedulers;
@@ -30,9 +29,8 @@ import com.tungsten.fclcore.task.Task;
 import com.tungsten.fclcore.task.TaskExecutor;
 import com.tungsten.fclcore.task.TaskListener;
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
-import com.tungsten.fcllibrary.component.ui.FCLCommonPage;
+import com.tungsten.fcllibrary.component.ui.FCLPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
-import com.tungsten.fcllibrary.component.view.FCLUILayout;
 import com.tungsten.fcllibrary.util.ConvertUtils;
 
 import java.io.File;
@@ -41,7 +39,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public class InstallerListPage extends FCLCommonPage implements ManageUI.VersionLoadable, View.OnClickListener {
+public class InstallerListPage extends FCLPage implements ManageUI.VersionLoadable, View.OnClickListener {
 
     private Profile profile;
     private String versionId;
@@ -53,8 +51,8 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
 
     private FCLButton installOfflineButton;
 
-    public InstallerListPage(Context context, int id, FCLUILayout parent, int resId) {
-        super(context, id, parent, resId);
+    public InstallerListPage(Context context, int id) {
+        super(context, id, R.layout.page_manage_auto_install);
         create();
     }
 
@@ -109,7 +107,7 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
                 installerItem.upgradable.set(libraryConfigurable);
                 installerItem.installable.set(true);
                 installerItem.action.set(() -> {
-                    com.tungsten.fcl.ui.download.version.InstallerListPage page = new com.tungsten.fcl.ui.download.version.InstallerListPage(getContext(), PageManager.PAGE_ID_TEMP, getParent(), R.layout.page_install_version, gameVersion, libraryId, remoteVersion -> {
+                    com.tungsten.fcl.ui.download.version.InstallerListPage page = new com.tungsten.fcl.ui.download.version.InstallerListPage(getContext(), FCLPage.PAGE_ID_TEMP, gameVersion, libraryId, remoteVersion -> {
                         if (libraryVersion == null) {
                             finish(profile, remoteVersion);
                         } else {
@@ -117,13 +115,13 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
                             builder.setCancelable(false);
                             builder.setAlertLevel(FCLAlertDialog.AlertLevel.INFO);
                             builder.setTitle(getContext().getString(R.string.install_change_version));
-                            builder.setMessage(AndroidUtils.getLocalizedText(getContext(), "install_change_version_confirm", AndroidUtils.getLocalizedText(getContext(), "install_installer_" + libraryId), libraryVersion, remoteVersion.getSelfVersion()));
+                            builder.setMessage(getContext().getString(R.string.install_change_version_confirm, AndroidUtilKt.getLocalizedText(getContext(), "install_installer_" + libraryId), libraryVersion, remoteVersion.getSelfVersion()));
                             builder.setPositiveButton(() -> finish(profile, remoteVersion));
                             builder.setNegativeButton(null);
                             builder.create().show();
                         }
                     });
-                    ManagePageManager.getInstance().showTempPage(page);
+                    UIManager.getInstance().getManageUI().showTempPage(page);
                 });
                 boolean removable = !LibraryAnalyzer.LibraryType.MINECRAFT.getPatchId().equals(libraryId) && libraryConfigurable;
                 installerItem.removable.set(removable);
@@ -140,13 +138,10 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
         ArrayList<String> suffix = new ArrayList<>();
         suffix.add(".jar");
         MainActivity.getInstance().fileLauncher.launchSingleSelection(null, suffix, files -> {
-            String path = files.get(0);
-            Uri uri = Uri.parse(path);
-            if (AndroidUtils.isDocUri(uri)) {
-                path = AndroidUtils.copyFileToDir(getActivity(), uri, new File(FCLPath.CACHE_DIR));
-            }
-            if (new File(path).exists()) {
-                doInstallOffline(new File(path));
+            if (files == null) return;
+            File file = files.get(0).toFile(getActivity(), new File(FCLPath.CACHE_DIR));
+            if (file.exists()) {
+                doInstallOffline(file);
             }
         });
     }
@@ -166,7 +161,7 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
                         builder.setAlertLevel(FCLAlertDialog.AlertLevel.INFO);
                         builder.setCancelable(false);
                         builder.setMessage(getContext().getString(R.string.install_success));
-                        builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), () -> profile.getRepository().onVersionIconChanged.fireEvent(new Event(this)));
+                        builder.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), () -> profile.getRepository().onVersionIconChanged.fireEvent(new Event(this)));
                         builder.create().show();
                     } else {
                         if (executor.getException() == null)
@@ -215,13 +210,13 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
         parent.addView(view);
     }
 
-    private void finish(Profile profile, RemoteVersion remoteVersion) {
+    private void finish(Profile profile, ComponentRemoteVersion remoteVersion) {
         // We remove library but not save it,
         // so if installation failed will not break down current version.
         Task<Version> ret = Task.supplyAsync(() -> version);
         List<String> stages = new ArrayList<>();
         ret = ret.thenComposeAsync(version -> profile.getDependency(DownloadProviders.getDownloadProvider()).installLibraryAsync(version, remoteVersion));
-        stages.add(String.format("fcl.install.%s:%s", remoteVersion.getLibraryId(), remoteVersion.getSelfVersion()));
+        stages.add(String.format("fcl.install.%s:%s", remoteVersion.getComponentType().getPatchId(), remoteVersion.getSelfVersion()));
 
         Task<?> task = ret.thenComposeAsync(profile.getRepository()::saveAsync).thenComposeAsync(profile.getRepository().refreshVersionsAsync()).withStagesHint(stages);
 
@@ -239,8 +234,8 @@ public class InstallerListPage extends FCLCommonPage implements ManageUI.Version
                             builder1.setAlertLevel(FCLAlertDialog.AlertLevel.INFO);
                             builder1.setCancelable(false);
                             builder1.setMessage(getContext().getString(R.string.install_success));
-                            builder1.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), () -> {
-                                ManagePageManager.getInstance().dismissCurrentTempPage();
+                            builder1.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), () -> {
+                                UIManager.getInstance().getManageUI().dismissCurrentTempPage();
                                 profile.getRepository().onVersionIconChanged.fireEvent(new Event(this));
                             });
                             builder1.create().show();

@@ -18,8 +18,8 @@
 package com.tungsten.fcl.game;
 
 import static android.content.Context.MODE_PRIVATE;
-import static com.tungsten.fcl.util.AndroidUtils.getLocalizedText;
-import static com.tungsten.fcl.util.AndroidUtils.hasStringId;
+import static com.mio.util.AndroidUtilKt.getLocalizedText;
+import static com.mio.util.AndroidUtilKt.hasStringId;
 import static com.tungsten.fclcore.util.Logging.LOG;
 import static java.util.stream.Collectors.toList;
 
@@ -37,8 +37,10 @@ import com.mio.data.Renderer;
 import com.mio.manager.RendererManager;
 import com.mio.minecraft.ModCheckException;
 import com.mio.minecraft.ModChecker;
+import com.mio.plugin.NativeLibPlugin;
+import com.mio.util.LoginProgressKt;
 import com.mio.util.ParseUtil;
-import com.tungsten.fcl.FCLApplication;
+import com.tungsten.fcl.FCLApp;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.JVMActivity;
 import com.tungsten.fcl.activity.MainActivity;
@@ -52,7 +54,6 @@ import com.tungsten.fcl.ui.TaskDialog;
 import com.tungsten.fcl.ui.UIManager;
 import com.tungsten.fcl.util.TaskCancellationAction;
 import com.tungsten.fclauncher.bridge.FCLBridge;
-import com.tungsten.fclauncher.plugins.NativeLibPlugin;
 import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.auth.Account;
 import com.tungsten.fclcore.auth.AuthInfo;
@@ -60,6 +61,7 @@ import com.tungsten.fclcore.auth.AuthenticationException;
 import com.tungsten.fclcore.auth.CharacterDeletedException;
 import com.tungsten.fclcore.auth.CredentialExpiredException;
 import com.tungsten.fclcore.auth.authlibinjector.AuthlibInjectorDownloadException;
+import com.tungsten.fclcore.auth.microsoft.MicrosoftAccount;
 import com.tungsten.fclcore.download.DefaultDependencyManager;
 import com.tungsten.fclcore.download.LibraryAnalyzer;
 import com.tungsten.fclcore.download.MaintainTask;
@@ -68,6 +70,7 @@ import com.tungsten.fclcore.download.game.GameVerificationFixTask;
 import com.tungsten.fclcore.download.game.LibraryDownloadException;
 import com.tungsten.fclcore.game.JavaVersion;
 import com.tungsten.fclcore.game.LaunchOptions;
+import com.tungsten.fclcore.game.Library;
 import com.tungsten.fclcore.game.Version;
 import com.tungsten.fclcore.mod.LocalModFile;
 import com.tungsten.fclcore.mod.ModpackCompletionException;
@@ -108,6 +111,7 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public final class LauncherHelper {
@@ -154,7 +158,7 @@ public final class LauncherHelper {
         TaskExecutor executor = checkGameState(context, setting, version.get())
                 .thenComposeAsync(javaVersion -> {
                     javaVersionRef.set(Objects.requireNonNull(javaVersion));
-                    version.set(LibFilter.filter(version.get()));
+                    version.set(LibFilter.filter(version.get(), false));
                     if (setting.isNotCheckGame())
                         return null;
                     return Task.allOf(
@@ -191,7 +195,10 @@ public final class LauncherHelper {
                     return null;
                 })
                 .thenComposeAsync(() -> gameVersion.map(s -> new GameVerificationFixTask(dependencyManager, s, version.get())).orElse(null))
-                .thenComposeAsync(() -> logIn(context, account).withStage("launch.state.logging_in"))
+                .thenComposeAsync(() -> logIn(context, account,
+                        // 微软登录阶段实时写入启动过程的日志区
+                        text -> Schedulers.androidUIThread().execute(() -> launchingStepsPane.appendLog(text)))
+                        .withStage("launch.state.logging_in"))
                 .thenComposeAsync(authInfo -> Task.supplyAsync(() -> {
                             try {
                                 MenuSetting menuSetting = new GsonBuilder()
@@ -223,11 +230,28 @@ public final class LauncherHelper {
                                     authInfo,
                                     launchOptions
                             );
-                            version.get().getLibraries().forEach(library -> {
-                                if (library.getName().startsWith("net.java.dev.jna:jna:")) {
-                                    launcher.setJnaVersion(library.getVersion());
+                            String jnaVersion = null;
+                            String lwjglVersion = null;
+                            VersionNumber lwjglMax = null;
+                            for (Library library : version.get().getLibraries()) {
+                                String name = library.getName();
+                                if (name.startsWith("net.java.dev.jna:jna:")) {
+                                    jnaVersion = library.getVersion();
+                                } else if (name.startsWith("org.lwjgl.lwjgl:lwjgl:") || name.startsWith("org.lwjgl:lwjgl:")) {
+                                    // 新旧 LWJGL 声明可能并存(如 lwj3ify 的 3.x 与基础版本的 2.x),取最高版本
+                                    VersionNumber current = VersionNumber.asVersion(library.getVersion());
+                                    if (lwjglMax == null || current.compareTo(lwjglMax) > 0) {
+                                        lwjglMax = current;
+                                        lwjglVersion = library.getVersion();
+                                    }
                                 }
-                            });
+                            }
+                            if (jnaVersion != null) {
+                                launcher.setJnaVersion(jnaVersion);
+                            }
+                            if (lwjglVersion != null) {
+                                launcher.setLwjglVersion(lwjglVersion);
+                            }
                             return launcher;
                         }).thenComposeAsync(launcher -> { // launcher is prev task's result
                             return Task.supplyAsync(launcher::launch);
@@ -247,6 +271,7 @@ public final class LauncherHelper {
                         }).thenComposeAsync(fclBridge -> {
                             GameOption gameOption = new GameOption(repository.getRunDirectory(selectedVersion).getAbsolutePath());
                             gameOption.set("preferredGraphicsBackend", setting.getGraphicsBackend());
+                            gameOption.set("startedCleanly", "true");
                             gameOption.save();
                             return Task.completed(fclBridge);
                         }).thenAcceptAsync(fclBridge -> Schedulers.androidUIThread().execute(() -> {
@@ -268,7 +293,7 @@ public final class LauncherHelper {
                                 MainActivity.getInstance().binding.videoView.stopPlayback();
                             }
                             if (context.getSharedPreferences("launcher", MODE_PRIVATE).getBoolean("autoExitLauncher", false)) {
-                                Activity activity = FCLApplication.getCurrentActivity();
+                                Activity activity = FCLApp.getActivity();
                                 if (activity != null)
                                     activity.finish();
                             }
@@ -293,53 +318,53 @@ public final class LauncherHelper {
                             String message;
                             if (ex instanceof ModpackCompletionException) {
                                 if (ex.getCause() instanceof FileNotFoundException)
-                                    message = getLocalizedText(context, "modpack_type_curse_not_found");
+                                    message = context.getString(R.string.modpack_type_curse_not_found);
                                 else
-                                    message = getLocalizedText(context, "modpack_type_curse_error");
+                                    message = context.getString(R.string.modpack_type_curse_error);
                             } else if (ex instanceof LibraryDownloadException) {
-                                message = getLocalizedText(context, "launch_failed_download_library", ((LibraryDownloadException) ex).getLibrary().getName()) + "\n";
+                                message = context.getString(R.string.launch_failed_download_library, ((LibraryDownloadException) ex).getLibrary().getName()) + "\n";
                                 if (ex.getCause() instanceof ResponseCodeException rce) {
                                     int responseCode = rce.getResponseCode();
                                     URL url = rce.getUrl();
                                     if (responseCode == 404)
-                                        message += getLocalizedText(context, "download_code_404", url);
+                                        message += context.getString(R.string.download_code_404, url);
                                     else
-                                        message += getLocalizedText(context, "download_failed", url, responseCode);
+                                        message += context.getString(R.string.download_failed, url, responseCode);
                                 } else {
                                     message += StringUtils.getStackTrace(ex.getCause());
                                 }
                             } else if (ex instanceof DownloadException) {
                                 URL url = ((DownloadException) ex).getUrl();
                                 if (ex.getCause() instanceof SocketTimeoutException) {
-                                    message = getLocalizedText(context, "install_failed_downloading_timeout", url);
+                                    message = context.getString(R.string.install_failed_downloading_timeout, url);
                                 } else if (ex.getCause() instanceof ResponseCodeException responseCodeException) {
                                     if (hasStringId(context, "download_code_" + responseCodeException.getResponseCode())) {
                                         message = getLocalizedText(context, "download_code_" + responseCodeException.getResponseCode(), url);
                                     } else {
-                                        message = getLocalizedText(context, "install_failed_downloading_detail", url) + "\n" + StringUtils.getStackTrace(ex.getCause());
+                                        message = context.getString(R.string.install_failed_downloading_detail, url) + "\n" + StringUtils.getStackTrace(ex.getCause());
                                     }
                                 } else {
-                                    message = getLocalizedText(context, "install_failed_downloading_detail", url) + "\n" + StringUtils.getStackTrace(ex.getCause());
+                                    message = context.getString(R.string.install_failed_downloading_detail, url) + "\n" + StringUtils.getStackTrace(ex.getCause());
                                 }
                             } else if (ex instanceof GameAssetIndexDownloadTask.GameAssetIndexMalformedException) {
-                                message = getLocalizedText(context, "assets_index_malformed");
+                                message = context.getString(R.string.assets_index_malformed);
                             } else if (ex instanceof AuthlibInjectorDownloadException) {
-                                message = getLocalizedText(context, "account_failed_injector_download_failure");
+                                message = context.getString(R.string.account_failed_injector_download_failure);
                             } else if (ex instanceof CharacterDeletedException) {
-                                message = getLocalizedText(context, "account_failed_character_deleted");
+                                message = context.getString(R.string.account_failed_character_deleted);
                             } else if (ex instanceof ResponseCodeException rce) {
                                 int responseCode = rce.getResponseCode();
                                 URL url = rce.getUrl();
                                 if (responseCode == 404)
-                                    message = getLocalizedText(context, "download_code_404", url);
+                                    message = context.getString(R.string.download_code_404, url);
                                 else
-                                    message = getLocalizedText(context, "download_failed", url, responseCode);
+                                    message = context.getString(R.string.download_failed, url, responseCode);
                             } else if (ex instanceof AccessDeniedException) {
-                                message = getLocalizedText(context, "exception_access_denied", ((AccessDeniedException) ex).getFile());
+                                message = context.getString(R.string.exception_access_denied, ((AccessDeniedException) ex).getFile());
                             } else if (ex instanceof ModCheckException) {
                                 message = ((ModCheckException) ex).getReason();
                             } else if (ex instanceof IllegalArgumentException) {
-                                message = getLocalizedText(context, "exception_no_suitable_java");
+                                message = context.getString(R.string.exception_no_suitable_java);
                             } else {
                                 message = StringUtils.getStackTrace(ex);
                             }
@@ -349,7 +374,7 @@ public final class LauncherHelper {
                             builder.setCancelable(false);
                             builder.setTitle(context.getString(R.string.launch_failed));
                             builder.setMessage(message);
-                            builder.setNegativeButton(context.getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                            builder.setNegativeButton(context.getString(com.tungsten.fcl.R.string.dialog_positive), null);
                             builder.create().show();
                         });
                     }
@@ -430,7 +455,7 @@ public final class LauncherHelper {
                         }).map(NativeLibPlugin.NativePlugin::getAppName)
                         .collect(toList());
                 if (!unsupportedPlugins.isEmpty()) {
-                    String fullString = org.apache.commons.lang3.StringUtils.join(unsupportedPlugins, ", ");
+                    String fullString = String.join(", ", unsupportedPlugins);
                     Schedulers.androidUIThread().execute(() -> new FCLAlertDialog.Builder(context)
                             .setCancelable(false)
                             .setMessage(context.getString(R.string.message_check_plugin, fullString))
@@ -461,10 +486,8 @@ public final class LauncherHelper {
                                 future.completeExceptionally(new CancellationException());
                                 UIManager manager = UIManager.getInstance();
                                 MainActivity.getInstance().binding.manage.setSelected(true);
-                                manager.getManageUI().runAfterInit(() -> {
-                                    FCLTabLayout tabLayout = manager.getManageUI().tabLayout;
-                                    tabLayout.selectTab(tabLayout.getTabAt(2));
-                                });
+                                FCLTabLayout tabLayout = manager.getManageUI().tabLayout;
+                                tabLayout.selectTab(tabLayout.getTabAt(2));
                             })
                             .setNegativeButton(context.getString(R.string.mod_check_continue), () -> future.complete(Task.completed(bridge))).create().show());
                     return Task.fromCompletableFuture(future).thenComposeAsync(task -> task);
@@ -595,8 +618,17 @@ public final class LauncherHelper {
         }).withStage("launch.state.java");
     }
 
-    private static Task<AuthInfo> logIn(Context context, Account account) {
+    /**
+     * 登录账户；progressConsumer 用于接收微软账户的实时登录阶段文字（可为 null）。
+     */
+    private static Task<AuthInfo> logIn(Context context, Account account, Consumer<String> progressConsumer) {
         return Task.composeAsync(() -> {
+            // 微软账户登录期间上报各认证阶段，进度回调在后台登录线程触发
+            boolean withProgress = account instanceof MicrosoftAccount && progressConsumer != null;
+            if (withProgress) {
+                ((MicrosoftAccount) account).setProgressCallback(
+                        stage -> progressConsumer.accept(LoginProgressKt.loginStageText(context, stage)));
+            }
             try {
                 return Task.completed(account.logIn());
             } catch (CredentialExpiredException e) {
@@ -617,6 +649,10 @@ public final class LauncherHelper {
                     dialog.show();
                 });
                 return Task.fromCompletableFuture(future).thenComposeAsync(task -> task);
+            } finally {
+                if (withProgress) {
+                    ((MicrosoftAccount) account).setProgressCallback(null);
+                }
             }
         });
     }
@@ -648,7 +684,7 @@ public final class LauncherHelper {
         @Override
         public void onClick(View view) {
             if (view == retry) {
-                future.complete(logIn(getContext(), account));
+                future.complete(logIn(getContext(), account, null));
             }
             if (view == skip) {
                 try {

@@ -25,6 +25,7 @@
     <string name="splash_runtime_java25" translatable="false">JRE 25</string>
     <string name="splash_runtime_jna" translatable="false">JNA</string>
     <string name="splash_runtime_install">Install / Update</string>
+    <string name="splash_runtime_patching">Optimizing runtime…</string>
     <string name="missing_runtime_arch_files">The currently installed launcher is missing the runtime files required for your device\'s architecture(%s). Please download the installation package for the corresponding architecture(%s) or the universal installation package(%s).</string>
 
     <string name="account">Account</string>
@@ -35,8 +36,24 @@
     <string name="controller">Controller</string>
     <string name="multiplayer">Multiplayer</string>
     <string name="setting">Setting</string>
-    
+
     <string name="about">About</string>
+    <string name="settings_plugin">Plugins</string>
+    <string name="plugin_empty">No plugins detected</string>
+    <string name="plugin_type_renderer">Renderer</string>
+    <string name="plugin_type_driver">Driver</string>
+    <string name="plugin_type_native">Native Library</string>
+    <string name="plugin_enable">Enable</string>
+    <string name="plugin_uninstall">Uninstall</string>
+    <string name="plugin_miolibpatcher_name" translatable="false">MioLibPatcher</string>
+    <string name="plugin_miolibpatcher_desc">JVM bytecode patch that fixes mod compatibility issues on Android</string>
+    <string name="plugin_miolibpatcher_alc10">ALC10 patch</string>
+    <string name="plugin_miolibpatcher_alc10_desc">Replaces alcGetCurrentContext to fix the no-audio issue in Mite (1.6.4)</string>
+    <string name="plugin_miolibpatcher_sable">Sable Rapier patch</string>
+    <string name="plugin_miolibpatcher_sable_desc">Enabled by default (no property is set); disable to force-disable the Rapier patch</string>
+    <string name="plugin_miolibpatcher_asm">ASM backdoor</string>
+    <string name="plugin_miolibpatcher_asm_desc">Removes the ASM 5.0.4 API check to support older mods like AE1 (affects all ASM 5.0.4 mods, use with caution)</string>
+    <string name="plugin_env_config">Configure</string>
     <string name="about_launcher" translatable="false">Fold Craft Launcher</string>
     <string name="about_developer" translatable="false">FCL-Team</string>
     <string name="about_sponsor">Sponsor</string>
@@ -87,23 +104,40 @@
     <string name="account_methods_microsoft_error_banned">Your account may have been banned by Xbox Live.\nYou can click on "Ban Query" above for more details.</string>
     <string name="account_methods_microsoft_error_unknown">Failed to log in</string>
     <string name="account_methods_microsoft_error_wrong_verify_method">Please log in using your account(like phone number) and password on the Microsoft account login page. Please do not use a verification code to log in.</string>
-    <string name="account_methods_microsoft_error_no_license">No Minecraft purchase record found. Please click here ( https://www.xbox.com/games/store/minecraft-java-bedrock-edition-for-pc/9nxp44l49shj ) to get the game.\nIf you are using Game Pass, please create your game profile <a href="https://www.minecraft.net/msaprofile/mygames/editprofile">here</a>. If you have already purchased the game, please check if you are logged into the correct account.</string>
+    <string name="account_methods_microsoft_error_no_license">No Minecraft purchase record found. Please click here ( https://www.xbox.com/games/store/minecraft-java-bedrock-edition-for-pc/9nxp44l49shj ) to get the game.\nIf you are using Game Pass, please create your game profile here ( https://www.minecraft.net/msaprofile/mygames/editprofile ).</string>
     <string name="account_methods_microsoft_error_no_character">You have not created a game profile yet. Please click here (https://www.minecraft.net/msaprofile/mygames/editprofile ) to create one.</string>
     <string name="account_methods_microsoft_error_add_family_probably">Please check if the age indicated in your account settings is at least 18 years old. If not and you believe this is an error, you can go to official website to change it.</string>
     <string name="account_methods_microsoft_close_page">Microsoft account authorization is now completed.</string>
     <string name="account_methods_microsoft_hint">Please click on the "Login" button, a piece of code will be automatically copied later, enter the code in the opened browser to finish the login process.</string>
     <string name="account_login_refresh">Re-login</string>
     <string name="account_login_refresh_microsoft_hint">Because the account authorization is invalid, you need to re-add your Microsoft account\nPlease click on the "OK" button, a piece of code will be automatically copied later, enter the code in the opened browser to finish the login process.</string>
+    <string name="login_state_microsoft_wait_browser">Waiting for browser authorization…</string>
+    <string name="login_state_microsoft_xbox">Authenticating with Xbox Live…</string>
+    <string name="login_state_microsoft_xsts">Acquiring Xbox XSTS token…</string>
+    <string name="login_state_microsoft_minecraft">Signing in to Minecraft services…</string>
+    <string name="login_state_microsoft_ownership">Verifying game ownership…</string>
+    <string name="login_state_microsoft_profile">Fetching player profile…</string>
     <string name="account_select_character">Select character</string>
     <string name="account_skin">Skin</string>
     <string name="account_skin_type_default">Default</string>
     <string name="account_skin_type_steve" translatable="false">Steve</string>
     <string name="account_skin_type_alex" translatable="false">Alex</string>
-    <string name="account_skin_type_csl_api" translatable="false">Custom Skin Loader</string>
-    <string name="account_skin_type_csl_api_location_hint">CustomSkinAPI URL</string>
-    <string name="account_skin_type_csl_api_hint">You need to create a character with the same name as your offline account on your skin provider website. Your skin will then be your uploaded skin to that site.</string>
-    <string name="account_skin_type_local_file">Local Skin File</string>
     <string name="account_skin_upload">Select skin file</string>
+    <string name="account_skin_model_classic" translatable="false">Classic (Steve)</string>
+    <string name="account_skin_model_slim" translatable="false">Slim (Alex)</string>
+    <string name="account_skin_model">Skin Model</string>
+    <string name="account_skin_upload_file">Upload</string>
+    <string name="account_skin_no_file_selected">No file selected</string>
+    <string name="account_skin_reset">Reset</string>
+    <string name="account_skin_reset_confirm">Reset skin? This will remove your custom skin.</string>
+    <string name="account_skin_uploaded">Skin uploaded successfully</string>
+    <string name="account_skin_reset_done">Skin reset to default</string>
+    <string name="account_cape_management">Cape Management</string>
+    <string name="account_cape_none">No capes available</string>
+    <string name="account_cape_active">Active</string>
+    <string name="account_cape_hide">Hide Cape</string>
+    <string name="account_cape_activated">Cape activated</string>
+    <string name="account_cape_hidden">Cape hidden</string>
     <string name="account_state_no_account">No account</string>
     <string name="account_state_add">Click to add</string>
 
@@ -130,6 +164,7 @@
     <string name="button_cancel">Cancel</string>
     <string name="button_copy">Copy</string>
     <string name="button_download">Download</string>
+    <string name="button_download_all">Download All</string>
     <string name="button_export">Export</string>
     <string name="button_hide">Hide</string>
     <string name="button_install">Install</string>
@@ -193,6 +228,14 @@
     <string name="control_list">Controller List</string>
     <string name="control_select">Select Controller</string>
     <string name="control_share">Share Controller</string>
+    <string name="control_share_choose">Choose share method</string>
+    <string name="control_share_direct">Direct share</string>
+    <string name="control_share_zl2">Share as ZL2 layout</string>
+    <string name="control_share_zl2_title">Share ZL2 layout</string>
+    <string name="control_converting">Converting…</string>
+    <string name="control_convert_failed">Conversion failed!</string>
+    <string name="control_convert_unsupported">ZL2 conversion is not supported on this device (arm64 required)</string>
+    <string name="control_import_zl2_converted">ZalithLauncher2 layout detected and converted</string>
     <string name="control_upload">Upload Controller</string>
 
     <string name="curse_category_0">All</string>
@@ -351,6 +394,8 @@
     <string name="edit_button_text">Displayed Text</string>
     <string name="edit_button_event_follow">Pointer Follows Finger</string>
     <string name="edit_button_event_movable">Movable</string>
+    <string name="edit_button_event_swipable">Swipe Link</string>
+    <string name="edit_button_event_tabs_hint">The button supports all four trigger types at the same time. Switch the tabs below to configure each one.</string>
     <string name="edit_button_event_press">Press</string>
     <string name="edit_button_event_long_press">Long Press</string>
     <string name="edit_button_event_click">Click</string>
@@ -375,6 +420,9 @@
     <string name="edit_direction_event_left">Left Keycode</string>
     <string name="edit_direction_event_right">Right Keycode</string>
     <string name="edit_direction_event_follow">Follow Option (Only for rocker style)</string>
+    <string name="edit_direction_event_dead_zone">Dead Zone</string>
+    <string name="edit_direction_event_can_lock">Forward Lock</string>
+    <string name="edit_direction_event_lock_threshold">Lock Threshold</string>
     <string name="edit_direction_event_follow_fix">Fixed</string>
     <string name="edit_direction_event_follow_center">Center Follows Finger</string>
     <string name="edit_direction_event_follow_always">All Parts Follow Finger</string>
@@ -390,8 +438,8 @@
     <string name="folder_log">Browse log directory</string>
     <string name="folder_fcl_log">Browse FCL logs</string>
     <string name="upload_log">Upload Log</string>
-     <string name="log_not_found">Log file not found</string>
-     <string name="log_too_large">Log file is too large</string>
+    <string name="log_not_found">Log file not found</string>
+    <string name="log_too_large">Log file is too large</string>
     <string name="upload_fcl_log">Upload FCL log</string>
     <string name="upload_game_log">Upload game log</string>
     <string name="upload_success">Upload success! URL copied to clipboard: %s</string>
@@ -496,6 +544,14 @@
     <string name="install_installer_install">Install %s</string>
     <string name="install_installer_install_offline">Install/Update from Local File</string>
     <string name="install_installer_install_offline_extension">Forge/OptiFine installer</string>
+    <string name="installer_running_processor">Running installer (Java %s)…</string>
+    <string name="installer_recent_logs">Recent logs:</string>
+    <string name="installer_process_retrying">Installer process timed out, retrying (%1$d/%2$d)…</string>
+    <string name="installer_process_start_error">Failed to start installer process</string>
+    <string name="installer_process_no_exit_code">Installer process did not return an exit code, it may have exited abnormally</string>
+    <string name="installer_process_no_response">Installer process is not responding, forcibly terminated</string>
+    <string name="installer_process_failed_to_start">Installer process failed to start</string>
+    <string name="installer_exit_code_invalid">Invalid installer exit code: %1$s</string>
     <string name="install_installer_liteloader" translatable="false">LiteLoader</string>
     <string name="install_installer_not_installed">Not Selected</string>
     <string name="install_installer_optifine" translatable="false">OptiFine</string>
@@ -532,6 +588,7 @@
     <string name="menu_controls_current">Current Controller</string>
     <string name="menu_controls_edit_mode">Edit Mode</string>
     <string name="menu_controls_show_boundary">Show View Boundaries</string>
+    <string name="menu_controls_edit_hint">Tap to select, drag to move, drag the corner handles to resize</string>
     <string name="menu_controls_hide_all">Hide All Views</string>
     <string name="menu_controls_auto_fit">Auto Fit Position</string>
     <string name="menu_controls_auto_fit_dist">Auto Fit Position Distance</string>
@@ -556,6 +613,9 @@
     <string name="menu_control_style_add">Add Style</string>
     <string name="menu_control_style_edit">Edit Style</string>
     <string name="menu_control_view_group_add">Add View Group</string>
+    <string name="menu_control_view_group_copy">Copy view group</string>
+    <string name="menu_control_view_group_copy_suffix"> - copy</string>
+    <string name="menu_control_view_group_copy_failed">Failed to copy view group</string>
     <string name="menu_control_view_group_delete">Are you sure to delete this view group?</string>
     <string name="menu_control_view_group_name">Name</string>
     <string name="menu_control_view_group_visibility">Initial Visibility</string>
@@ -566,16 +626,11 @@
 
     <string name="menu_settings">Settings</string>
     <string name="menu_settings_debug">Debug</string>
-    <string name="menu_settings_disable_be_gesture">Disable Advanced Gesture</string>
     <string name="menu_settings_disable_gesture">Disable Gesture</string>
     <string name="menu_settings_disable_left_touch">Disable left half screen touch</string>
     <string name="menu_settings_force_exit">Force Exit</string>
     <string name="menu_settings_force_exit_button">Exit</string>
     <string name="menu_settings_force_exit_msg">Are you sure to force exit?</string>
-    <string name="menu_settings_capture_mobilegl_trace">MobileGL Trace</string>
-    <string name="menu_settings_capture_mobilegl_trace_button">Capture</string>
-    <string name="menu_settings_capture_mobilegl_trace_requested">MobileGL trace capture requested</string>
-    <string name="menu_settings_capture_mobilegl_trace_failed">Failed to request MobileGL trace capture</string>
     <string name="menu_settings_function">Function</string>
     <string name="menu_settings_gesture">Gesture</string>
     <string name="menu_settings_gesture_mode">Gesture Mode</string>
@@ -599,12 +654,21 @@
     <string name="menu_settings_mouse_offset_y">Mouse Offset Y</string>
     <string name="menu_settings_physical_mouse_mode">Physical Mouse</string>
     <string name="menu_settings_gamepad">GamePad</string>
-    <string name="menu_settings_gamepad_disable_mapping">Disable Gamepad Mapping</string>
+    <string name="menu_settings_gamepad_control">Gamepad Control</string>
     <string name="menu_settings_gamepad_reset_mapper">ResetMapper</string>
     <string name="menu_settings_gamepad_button_binding">Button binding</string>
     <string name="menu_settings_gamepad_open_button">Open</string>
     <string name="menu_settings_gamepad_reset">Reset</string>
     <string name="menu_settings_gamepad_deadzone">DeadZone</string>
+    <string name="menu_settings_gamepad_input_mode">Gamepad Input Mode</string>
+    <string name="menu_settings_gamepad_input_mode_mapped">Mapped</string>
+    <string name="menu_settings_gamepad_input_mode_sdl_direct">SDL Direct</string>
+    <string name="menu_settings_sdl_auto_show_ime">Auto Show IME (SDL)</string>
+    <string name="gamepad_mode_prompt_title">Gamepad Input Mode</string>
+    <string name="gamepad_mode_prompt_description">A gamepad input was detected. Choose how gamepad input should be handled:</string>
+    <string name="gamepad_mode_prompt_mapped_summary">Map gamepad buttons and sticks to virtual keyboard and mouse. Suitable for older versions or games without native gamepad support.</string>
+    <string name="gamepad_mode_prompt_sdl_direct_summary">Pass gamepad input directly to SDL/GLFW. Enables native gamepad support of Minecraft 26.3+.</string>
+    <string name="gamepad_mode_prompt_hint">You can change the mode anytime from the in-game menu.</string>
     <string name="menu_settings_multiplayer">Multiplayer Menu</string>
     <string name="menu_settings_multiplayer_button">Open</string>
     <string name="menu_settings_quick_input">Quick Input</string>
@@ -613,6 +677,9 @@
     <string name="menu_settings_send_key_button">Send</string>
     <string name="menu_settings_soft_keyboard_adjust">DisableSoftKeyboardAutoAdjust</string>
     <string name="menu_settings_item_bar_scale">ItemBarScale</string>
+    <string name="menu_settings_item_bar_scale_width">ItemBarScale (Width)</string>
+    <string name="menu_settings_item_bar_scale_height">ItemBarScale (Height)</string>
+    <string name="menu_settings_controls_opacity">Controls Opacity</string>
     <string name="menu_settings_show_log">Show Log</string>
     <string name="menu_settings_show_log_auto">Show Log Automatically</string>
     <string name="menu_settings_performance_mode">Sustained Performance Mode</string>
@@ -622,6 +689,12 @@
     <string name="message_copy">Copy successfully!</string>
     <string name="message_doing">Please wait</string>
     <string name="message_downloading">Downloading</string>
+    <string name="mods_dependency_skipped_note">%1$d dependencies could not be resolved and were skipped</string>
+    <string name="download_ready_to_install">Downloaded · tap to install</string>
+    <string name="mods_already_installed">Mod already installed</string>
+    <string name="mods_installed_skipped_note">%1$d mods already installed and skipped</string>
+    <string name="mods_dependency_resolving">Resolving required dependencies…</string>
+    <string name="download_manager">Download Manager</string>
     <string name="message_error">Error</string>
     <string name="message_failed">Operation Failed</string>
     <string name="message_file_exist">File already exist</string>
@@ -677,6 +750,7 @@
     <string name="modpack_type_curse_not_found">Some dependencies are no longer available, please try to install a newer version of the modpack.</string>
     <string name="modpack_type_manual_warning">The modpack is manually packaged by the publisher, which may already contain a launcher. It is recommended to try to decompress and run the game with its own launcher. FCL can still import it, with no guarantee of its usability, still continue?</string>
     <string name="modpack_type_mcbbs">MCBBS Type</string>
+    <string name="modpack_type_hmcl">HMCL Type</string>
     <string name="modpack_type_mcbbs_export">Can be imported by FCL, HMCL and MultiMC</string>
     <string name="modpack_type_modrinth">Modrinth</string>
     <string name="modpack_type_multimc">MultiMC</string>
@@ -821,8 +895,11 @@
     <string name="mods_mcmod_page">MCMOD Page</string>
     <string name="mods_mcmod_search">Search in MCMOD</string>
     <string name="mods_modrinth">Modrinth</string>
+    <string name="mods_aggregate">Aggregated</string>
+    <string name="search_aggregate_partial">Failed to connect to %1$s, currently only showing results from %2$s. Results may be incomplete.</string>
     <string name="mods_name">Name</string>
     <string name="mods_not_modded">You must install a mod loader (Fabric, Forge or LiteLoader) first to manage your mods!</string>
+    <string name="message_broken_mods">The following mod files are corrupted. Do you want to delete them?\n%s</string>
     <string name="mods_restore">Rollback</string>
     <string name="mods_url">Official Page</string>
     <string name="mods_update_modpack_mod_warning">Updating mods in a modpack can lead to irreparable results, possibly corrupting the modpack so that it cannot start. Are you sure you want to update?</string>
@@ -856,42 +933,45 @@
     <string name="search_page_n" translatable="false">%d / %s</string>
 
     <string name="settings_advanced_dont_check_game_completeness">Do not check game integrity</string>
+    <string name="settings_advanced_dont_check_game_completeness_desc">Skip the game file integrity check to speed up startup.</string>
     <string name="settings_advanced_dont_check_jvm_validity">Do not check JVM compatibility</string>
+    <string name="settings_advanced_dont_check_jvm_validity_desc">Skip the JVM validity check.</string>
     <string name="settings_advanced_dont_check_mod">Do not check Mod compatibility</string>
+    <string name="settings_advanced_dont_check_mod_desc">Skip the mod compatibility check.</string>
     <string name="settings_advanced_debug_log">Output debug log</string>
+    <string name="settings_advanced_debug_log_desc">Output detailed debug logs for troubleshooting.</string>
     <string name="settings_advanced_game_dir_default">Default (.minecraft/)</string>
     <string name="settings_advanced_game_dir_independent">Isolated (.minecraft/versions/&#60;instance name>/, except for assets and libraries)</string>
     <string name="settings_advanced_jvm_args">Java VM arguments</string>
+    <string name="settings_advanced_jvm_args_desc">Additional arguments passed to the JVM.</string>
     <string name="settings_advanced_env">Environment Variables</string>
+    <string name="settings_advanced_env_desc">Set environment variables for the game process (one KEY=VALUE per line).</string>
     <string name="settings_advanced_minecraft_arguments">Launch Arguments</string>
+    <string name="settings_advanced_minecraft_arguments_desc">Additional arguments passed to Minecraft.</string>
     <string name="settings_advanced_minecraft_arguments_prompt">Default</string>
     <string name="settings_advanced_server_ip">Server Address</string>
+    <string name="settings_advanced_server_ip_desc">Join the specified server automatically after the game starts (IP:port).</string>
     <string name="settings_advanced_server_ip_prompt">Join automatically after launching the game.</string>
-    <string name="settings_advanced_custom_uuid">Custom UUID</string>
-    <string name="settings_advanced_force_resolution">Force set resolution (experimental option, use with caution)</string>
+    <string name="settings_advanced_force_resolution">Force set resolution</string>
+    <string name="settings_advanced_force_resolution_desc">Force the game to run at a specified resolution (WxH). Experimental option, use with caution.</string>
 
     <string name="settings_fcl_controller">Controller</string>
-    <string name="settings_fcl_controller_injector">BE Gesture</string>
+    <string name="settings_fcl_controller_desc">Choose the controller layout used by this version.</string>
     <string name="settings_fcl_vulkan_driver_system">Use System Vulkan driver</string>
-    <string name="settings_fcl_graphics_backend">Graphics Backend (only effective for 26.2+)</string>
-    <string name="settings_fcl_texture_view">Use upstream TextureView game surface</string>
-    <string name="settings_fcl_renderer">OpenGL Implementation (Renderer)</string>
-    <string name="settings_fcl_pojav_bigcore">Force the renderer to run on the big core</string>
-    <string name="settings_fcl_renderer_gl4es" translatable="false">Holy GL4ES (OpenGL 2.1, 1.21.5-)</string>
+    <string name="settings_fcl_vulkan_driver_system_desc">Use the system Vulkan driver. Better performance but may cause compatibility issues.</string>
+    <string name="settings_fcl_graphics_backend">Graphics Backend</string>
+    <string name="settings_fcl_graphics_backend_desc">Choose the graphics rendering backend. Only effective for 26.2+.</string>
+    <string name="settings_fcl_renderer">OpenGL Implementation</string>
+    <string name="settings_fcl_renderer_desc">Choose the OpenGL renderer implementation.</string>
+    <string name="settings_fcl_renderer_gl4es" translatable="false">Holy GL4ES (OpenGL 2.1)</string>
     <string name="settings_fcl_renderer_virgl" translatable="false">VirGLRenderer (OpenGL 4.3)</string>
-    <string name="settings_fcl_renderer_vgpu" >VGPU (OpenGL 2.1+, only support 1.17-)</string>
+    <string name="settings_fcl_renderer_vgpu">VGPU (OpenGL 2.1+)</string>
     <string name="settings_fcl_renderer_zink" translatable="false">Kopper Zink (OpenGL 4.6)</string>
-    <string name="settings_fcl_renderer_zink_kopper" translatable="false">Mesa Zink + Kopper (OpenGL 4.6)</string>
-    <string name="settings_fcl_renderer_freedreno" >Freedreno (OpenGL 4.6, only support GPU a616-a660)</string>
-    <string name="settings_fcl_renderer_nggl4es">Krypton Wrapper (OpenGL 3.1+, built-in)</string>
-    <string name="settings_fcl_renderer_mobileglues" translatable="false">MobileGlues (Dev)</string>
-    <string name="settings_fcl_renderer_mobilegl_espryt" translatable="false">MobileGL (Dev, Espryt)</string>
-    <string name="settings_fcl_renderer_mobilegl_magma" translatable="false">MobileGL (Dev, Magma)</string>
-    <string name="settings_fcl_renderer_sfpew_mobilegl_espryt" translatable="false">SFPEW -> MobileGL Espryt (Dev)</string>
-    <string name="settings_fcl_renderer_sfpew_mobilegl_magma" translatable="false">SFPEW -> MobileGL Magma (Dev)</string>
-    <string name="settings_fcl_renderer_simplefpewrapper_mobileglues" translatable="false">SimpleFPEWrapper -> MobileGlues (Dev)</string>
+    <string name="settings_fcl_renderer_freedreno">Freedreno (OpenGL 4.6, only support adreno616-a660)</string>
+    <string name="settings_fcl_renderer_nggl4es">Krypton Wrapper (OpenGL 3.1+)</string>
 
     <string name="settings_fcl_driver">Vulkan Driver</string>
+    <string name="settings_fcl_driver_desc">Choose the Vulkan driver implementation.</string>
 
     <string name="settings_download_netdisk">Netdisk(Recommended for users in China)</string>
 
@@ -899,27 +979,44 @@
     <string name="settings_game_dimension">Resolution</string>
     <string name="settings_game_cursor_offset">Cursor Offset</string>
     <string name="settings_game_java_version">Java Version</string>
+    <string name="settings_game_java_version_desc">Choose the Java runtime used to launch this version.</string>
     <string name="settings_game_java_version_auto">Auto</string>
     <string name="settings_game_java_version_8" translatable="false">JRE 8</string>
     <string name="settings_game_java_version_17" translatable="false">JRE 17</string>
     <string name="settings_game_working_directory">Isolate Working Directory</string>
+    <string name="settings_game_working_directory_desc">Store game files in a separate directory for this version.</string>
 
     <string name="settings_icon">Icon</string>
+    <string name="settings_icon_desc">Customize the icon shown for this version in the version list.</string>
 
     <string name="settings_launcher">Launcher Settings</string>
     <string name="settings_launcher_request">Request</string>
     <string name="settings_launcher_debug">Debug</string>
+    <string name="settings_launcher_debug_desc">Export log files for troubleshooting and feedback.</string>
     <string name="settings_launcher_request_recording_permission">Request recording permission (for voice chat mod)</string>
+    <string name="settings_launcher_request_recording_permission_desc">Request the audio recording permission (needed for in-game voice).</string>
     <string name="settings_launcher_upgrade">Update Launcher</string>
+    <string name="settings_launcher_upgrade_desc">Check whether a new version of the launcher is available.</string>
     <string name="settings_launcher_upgrade_check">Check</string>
-    <string name="settings_launcher_cache">Cache Directory</string>
-    <string name="settings_launcher_clear_cache">Clear cache</string>
     <string name="settings_launcher_download">Download</string>
     <string name="settings_launcher_download_threads">Threads</string>
+    <string name="settings_launcher_download_threads_desc">Set the number of concurrent download threads.</string>
     <string name="settings_launcher_download_threads_auto">Automatically Determine</string>
     <string name="settings_launcher_download_source">Download Source</string>
+    <string name="settings_launcher_download_source_desc">Choose the preferred source for version lists and file downloads.</string>
+    <string name="settings_launcher_download_source_version_list">Version List Source</string>
+    <string name="settings_launcher_download_source_file">File Download Source</string>
     <string name="settings_launcher_download_source_auto">Auto Choose Download Mirror</string>
+    <string name="download_source_default">Auto (matches your network)</string>
+    <string name="download_source_official">Official</string>
+    <string name="download_source_mirror">Mirror</string>
+    <string name="exception_dns_pollution">SSL connection failed, possibly due to DNS pollution.</string>
+    <string name="settings_launcher_mod_cache">Mod Cache</string>
+    <string name="settings_launcher_mod_cache_clear">Clear</string>
+    <string name="settings_launcher_mod_cache_desc">Clear cached CurseForge / Modrinth query results.</string>
+    <string name="settings_launcher_mod_cache_cleared">Mod cache cleared</string>
     <string name="settings_launcher_language">Language</string>
+    <string name="settings_launcher_language_desc">Switch the launcher UI language. Some languages require a restart.</string>
     <string name="settings_launcher_language_system">Use System Language</string>
     <string name="settings_launcher_language_english" translatable="false">English</string>
     <string name="settings_launcher_language_simplified_chinese" translatable="false">简体中文</string>
@@ -929,36 +1026,57 @@
     <string name="settings_launcher_language_ukrainian" translatable="false">Українська Мова</string>
     <string name="settings_launcher_language_german" translatable="false">Deutsch</string>
     <string name="settings_launcher_language_traditional_chinese_hk" translatable="false">繁體中文（香港）</string>
+    <string name="settings_launcher_language_japanese" translatable="false">日本語</string>
+    <string name="settings_launcher_language_turkish" translatable="false">Türkçe</string>
+    <string name="settings_launcher_language_traditional_chinese_tw" translatable="false">繁體中文（台灣）</string>
     <string name="settings_launcher_launcher_log_export">Export launcher logs</string>
     <string name="settings_launcher_launcher_log_export_failed">Unable to export logs</string>
     <string name="settings_launcher_launcher_log_export_success">Logs have been exported to %s</string>
     <string name="settings_launcher_theme_mode">Theme Mode</string>
+    <string name="settings_launcher_theme_mode_desc">Switch between light and dark theme modes.</string>
     <string name="settings_launcher_theme_mode_follow">Follow the system</string>
     <string name="settings_launcher_theme_mode_light">Light Mode</string>
     <string name="settings_launcher_theme_mode_dark">Dark Mode</string>
     <string name="settings_launcher_theme">Main Theme Color</string>
-    <string name="settings_launcher_theme2">Secondary Theme Color(Light Mode)</string>
-    <string name="settings_launcher_theme2_dark">Secondary Theme Color(Dark Mode)</string>
+    <string name="settings_launcher_theme_desc">Customize the main color (light theme).</string>
+    <string name="settings_launcher_theme_dark">Main Theme Color</string>
+    <string name="settings_launcher_theme_dark_desc">Customize the main color (dark theme).</string>
+    <string name="settings_launcher_theme2">Secondary Theme Color</string>
+    <string name="settings_launcher_theme2_desc">Customize the secondary color (light theme).</string>
+    <string name="settings_launcher_theme2_dark">Secondary Theme Color</string>
+    <string name="settings_launcher_theme2_dark_desc">Customize the secondary color (dark theme).</string>
     <string name="settings_launcher_theme_fetch_background">Extract from background image</string>
-    <string name="settings_launcher_background_lt">Light Mode Launcher Background (Max 5120x5120)</string>
-    <string name="settings_launcher_background_dk">Dark Mode Launcher Background (Max 5120x5120)</string>
-    <string name="settings_launcher_background_video">Launcher Background (Video .mp4)</string>
+    <string name="settings_launcher_background_lt">Light Mode Launcher Background</string>
+    <string name="settings_launcher_background_lt_desc">Customize the background image of the light theme. Maximum resolution: 5120x5120.</string>
+    <string name="settings_launcher_background_dk">Dark Mode Launcher Background</string>
+    <string name="settings_launcher_background_dk_desc">Customize the background image of the dark theme. Maximum resolution: 5120x5120.</string>
+    <string name="settings_launcher_background_video">Launcher Background</string>
+    <string name="settings_launcher_background_video_desc">Use an animated video background (MP4 only).</string>
     <string name="settings_launcher_background_video_volume">Video Background Volume</string>
+    <string name="settings_launcher_background_video_volume_desc">Adjust the volume of the live background video.</string>
     <string name="settings_launcher_cursor">Cursor Picture</string>
+    <string name="settings_launcher_cursor_desc">Customize the mouse cursor style.</string>
     <string name="settings_launcher_menu_icon">Menu View Icon</string>
-    <string name="settings_launcher_ignore_notch">Ignore Notch</string>
+    <string name="settings_launcher_menu_icon_desc">Customize the in-game floating window menu icon (GIF supported).</string>
+    <string name="settings_launcher_ignore_notch">Fullscreen</string>
+    <string name="settings_launcher_ignore_notch_desc">Ignore the screen notch area and display in fullscreen.</string>
     <string name="settings_launcher_close_skin_view">Close Skin Model Viewing</string>
+    <string name="settings_launcher_close_skin_view_desc">Disable the skin model on the home page.</string>
     <string name="settings_launcher_animation_speed">Animation Speed</string>
-    <string name="settings_launcher_vibrate_duration">Vibration Duration (For TouchController mod)</string>
-    <string name="settings_disable_fullscreen_input">Disable fullscreen input (For TouchController mod)</string>
-    <string name="settings_launcher_exit_after_launching">Launcher exits after launching</string>
-    <string name="settings_launcher_auto_countdown_launch">Auto countdown launch</string>
-    <string name="launcher_auto_countdown_title">Auto Launch</string>
-    <string name="launcher_auto_countdown_message">The selected instance "%1$s" will launch automatically in %2$d seconds.\nTap "Cancel" to stay on the launcher.</string>
+    <string name="settings_launcher_animation_speed_desc">Adjust the UI animation speed.</string>
+    <string name="settings_launcher_vibrate_duration">Vibration Duration</string>
+    <string name="settings_launcher_vibrate_duration_desc">Adjust the vibration duration of key presses (ms). For TouchController mod.</string>
+    <string name="settings_disable_fullscreen_input">Disable fullscreen input</string>
+    <string name="settings_disable_fullscreen_input_desc">Disable fullscreen input on some devices. For TouchController mod.</string>
+    <string name="settings_launcher_exit_after_launching">Auto close</string>
+    <string name="settings_launcher_exit_after_launching_desc">Exit the launcher automatically after the game starts. The crash screen will no longer be shown.</string>
     <string name="settings_launcher_custom_launcher_name">Custom launcher information</string>
+    <string name="settings_launcher_custom_launcher_name_desc">Customize the launcher name displayed in-game.</string>
     <string name="settings_launcher_allow_screenshot">Allow screenshot/recording in crash activity</string>
+    <string name="settings_launcher_allow_screenshot_desc">Allow screenshots or screen recording on interfaces where they are currently prohibited.</string>
 
     <string name="settings_memory">Memory</string>
+    <string name="settings_memory_desc">Set the maximum memory (MB) available to the game.</string>
     <string name="settings_memory_allocate_auto">%1$.1f GB Minimum / %2$.1f GB Allocated</string>
     <string name="settings_memory_allocate_auto_exceeded">%1$.1f GB Minimum / %2$.1f GB Allocated (%3$.1f GB Available)</string>
     <string name="settings_memory_allocate_manual">%1$.1f GB Allocated</string>
@@ -970,6 +1088,7 @@
     <string name="settings_tabs_installers">Modloaders</string>
     <string name="settings_type_global_manage">Global Game Settings</string>
     <string name="settings_type_special_enable">Enable per-instance settings</string>
+    <string name="settings_type_special_enable_desc">Save settings for this version only, without affecting the global settings.</string>
 
     <string name="style_name">Name</string>
     <string name="style_warning_delete">Are you sure to delete this style?</string>
@@ -1026,6 +1145,7 @@
     <string name="terracotta_menu">Multiplayer Menu</string>
     <string name="terracotta_menu_open">Open</string>
     <string name="terracotta_notification_title">Terracotta is running</string>
+    <string name="notification_title">FCL Process service is running!</string>
     <string name="terracotta_notification_desc">Identity: %s, State: %s</string>
     <string name="terracotta_status_waiting_host_title">I want to host a session</string>
     <string name="terracotta_status_waiting_host_desc">Create a room and generate an invite code to play with friends</string>
@@ -1248,11 +1368,12 @@
     <string name="message_warn_renderer_global_setting">The version you have currently selected has enabled per-instance settings, so the renderer selected here cannot be applied to the current version. Suggest long pressing the "Launch" button to select the renderer.</string>
     <string name="message_select_url">Please select a link to download (it will open in your browser).</string>
     <string name="supported_mc_version">Supported MC version:</string>
+    <string name="renderer_source">Source:</string>
+    <string name="renderer_source_builtin">Built-in</string>
     <string name="message_check_renderer">The current renderer %s does not support this game version. Continuing to use it may cause rendering errors or game crashes! Do you want to continue?</string>
     <string name="message_check_plugin">The current plugin %s does not support this game version. Continuing to use it may cause the game to crash! Do you want to continue?</string>
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
-    <string name="message_warn_restart_after_change">The changes will take effect after restarting.</string>
     <string name="message_check_path_valid">The currently selected game file path (%s) may contain illegal characters, which could cause the game to crash upon launching. It is recommended to check the game directory or rename the version. Do you want to continue launching?</string>
     <string name="message_check_has_modloader">It has been detected that the currently launched game version has mods installed, but the corresponding mod loader does not seem to be installed. The mods may not function properly after launching. Do you want to continue launching?</string>
     <string name="message_data_is_loading">The data is still loading and cannot be modified.</string>
@@ -1260,4 +1381,70 @@
     <string name="slide_selection">Slide Selection</string>
     <string name="swap_hands">Double Tap Swap Hands</string>
     <string name="jar_executor_warn">Note! This feature is not for installing mods. If you are installing mods, please use the launcher\'s download function or add them in "Manage Mods".</string>
+
+    <!-- 原 FCLLibrary 模块字符串（模块已并入 FCL） -->
+    <string name="file_browser_provider" translatable="false">com.tungsten.fcl.provider</string>
+    <string name="file_browser_title">File Browser</string>
+    <string name="file_browser_back">Back</string>
+    <string name="file_browser_close">Exit</string>
+    <string name="file_browser_shared">Shared directory</string>
+    <string name="file_browser_private">Private directory</string>
+    <string name="file_browser_open_external">Open in external APP(Like MT)</string>
+    <string name="file_browser_select_external">Select with external APP</string>
+    <string name="file_browser_private_alert">Cannot access to private directory, please check the permission.</string>
+    <string name="file_browser_mode">Mode:</string>
+    <string name="file_browser_mode_browse">Browse File</string>
+    <string name="file_browser_mode_file">Pick File</string>
+    <string name="file_browser_mode_folder">Pick Folder</string>
+    <string name="file_browser_selection">Type:</string>
+    <string name="file_browser_selection_simple">Single Selection</string>
+    <string name="file_browser_selection_multiple">Multiple Selection</string>
+    <string name="file_browser_positive">Confirm</string>
+    <string name="file_browser_positive_alert">No file/directory selected!</string>
+    <string name="file_browser_share_title">Share the file</string>
+    <string name="file_browser_share_message">Are you sure to share this file?</string>
+    <string name="crash_reporter_title">Crash Report</string>
+    <string name="crash_reporter_hint">Fold Craft Launcher has encountered an unresolvable error, please seek help from the developer or others.</string>
+    <string name="crash_reporter_restart">Restart</string>
+    <string name="crash_reporter_close">Exit</string>
+    <string name="crash_reporter_copy">Copy</string>
+    <string name="crash_reporter_share">Share</string>
+    <string name="crash_reporter_upload">Upload Log</string>
+    <string name="crash_reporter_toast">Copy successfully!</string>
+    <string name="color_picker_title">Color Picker</string>
+    <string name="color_picker_arrow" translatable="false">→</string>
+    <string name="color_picker_toast">Unknown color!</string>
+    <string name="dialog_alert">Alert</string>
+    <string name="dialog_info">Info</string>
+    <string name="dialog_positive">OK</string>
+    <string name="dialog_negative">Cancel</string>
+    <string name="log_upload_success_title">Log upload successful</string>
+    <string name="log_upload_copy">Copy Link</string>
+    <string name="log_upload_open">Open Link</string>
+    <string name="log_upload_share">Share Link</string>
+    <string name="log_upload_share_template">I encountered a problem in the launcher, here is the log link:\n%s</string>
+    <string name="close">Close</string>
+    <string name="create_account_first">Please create a game account before launching</string>
+    <string name="version_list_refreshing">Fetching remote version list…</string>
+    <string name="animation_select">Select Animation</string>
+    <string name="animation_idle">Idle</string>
+    <string name="animation_idle_variant_1">Idle variant 1</string>
+    <string name="animation_idle_variant_2">Idle variant 2</string>
+    <string name="animation_idle_variant_3">Idle variant 3</string>
+
+    <string name="menu_settings_capture_mobilegl_trace">MobileGL Trace</string>
+    <string name="menu_settings_capture_mobilegl_trace_button">Capture</string>
+    <string name="menu_settings_capture_mobilegl_trace_requested">MobileGL trace capture requested</string>
+    <string name="menu_settings_capture_mobilegl_trace_failed">Failed to request MobileGL trace capture</string>
+    <string name="settings_fcl_texture_view">Use upstream TextureView game surface</string>
+    <string name="settings_fcl_renderer_zink_kopper" translatable="false">Mesa Zink + Kopper (OpenGL 4.6)</string>
+    <string name="settings_fcl_renderer_mobileglues" translatable="false">MobileGlues (Dev)</string>
+    <string name="settings_fcl_renderer_mobilegl_espryt" translatable="false">MobileGL (Dev, Espryt)</string>
+    <string name="settings_fcl_renderer_mobilegl_magma" translatable="false">MobileGL (Dev, Magma)</string>
+    <string name="settings_fcl_renderer_sfpew_mobilegl_espryt" translatable="false">SFPEW -&gt; MobileGL Espryt (Dev)</string>
+    <string name="settings_fcl_renderer_sfpew_mobilegl_magma" translatable="false">SFPEW -&gt; MobileGL Magma (Dev)</string>
+    <string name="settings_fcl_renderer_simplefpewrapper_mobileglues" translatable="false">SimpleFPEWrapper -&gt; MobileGlues (Dev)</string>
+    <string name="settings_launcher_auto_countdown_launch">Auto countdown launch</string>
+    <string name="launcher_auto_countdown_title">Auto Launch</string>
+    <string name="launcher_auto_countdown_message">The selected instance "%1$s" will launch automatically in %2$d seconds.\nTap "Cancel" to stay on the launcher.</string>
 </resources>

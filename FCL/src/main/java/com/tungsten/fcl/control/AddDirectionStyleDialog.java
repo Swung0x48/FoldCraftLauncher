@@ -4,7 +4,6 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
-import android.widget.ArrayAdapter;
 import android.widget.ScrollView;
 import android.widget.Toast;
 
@@ -16,11 +15,11 @@ import com.tungsten.fcl.control.data.ControlButtonStyle;
 import com.tungsten.fcl.control.data.ControlDirectionStyle;
 import com.tungsten.fcl.control.data.DirectionStyles;
 import com.tungsten.fcl.control.view.ControlDirection;
-import com.tungsten.fcllibrary.component.dialog.EditDialog;
 import com.tungsten.fcl.util.FXUtils;
 import com.tungsten.fclcore.fakefx.beans.binding.Bindings;
 import com.tungsten.fclcore.fakefx.beans.property.IntegerProperty;
 import com.tungsten.fclcore.util.StringUtils;
+import com.tungsten.fcllibrary.component.dialog.EditDialog;
 import com.tungsten.fcllibrary.component.dialog.FCLColorPickerDialog;
 import com.tungsten.fcllibrary.component.dialog.FCLDialog;
 import com.tungsten.fcllibrary.component.view.FCLButton;
@@ -41,7 +40,7 @@ public class AddDirectionStyleDialog extends FCLDialog implements View.OnClickLi
 
     private FCLEditText editName;
     private ControlDirection direction;
-    private FCLSpinner<ControlDirectionStyle.Type> typeSpinner;
+    private FCLSpinner<String> typeSpinner;
 
     private ScrollView container;
     private FCLLinearLayout buttonStyleLayout;
@@ -52,6 +51,7 @@ public class AddDirectionStyleDialog extends FCLDialog implements View.OnClickLi
     private ControlButtonStyle buttonStyle;
     private boolean isEdit;
     private ControlButtonStyle beforeStyle;
+    private GameMenu menu;
 
     public interface Callback {
         void onStyleAdd(ControlDirectionStyle style);
@@ -76,13 +76,10 @@ public class AddDirectionStyleDialog extends FCLDialog implements View.OnClickLi
         ArrayList<ControlDirectionStyle.Type> types = new ArrayList<>();
         types.add(ControlDirectionStyle.Type.BUTTON);
         types.add(ControlDirectionStyle.Type.ROCKER);
-        typeSpinner.setDataList(types);
         ArrayList<String> typeString = new ArrayList<>();
         typeString.add(getContext().getString(R.string.style_direction_button));
         typeString.add(getContext().getString(R.string.style_direction_rocker));
-        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(getContext(), R.layout.item_spinner, typeString);
-        typeAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
-        typeSpinner.setAdapter(typeAdapter);
+        typeSpinner.setItems(typeString);
 
         container = findViewById(R.id.container);
 
@@ -155,6 +152,7 @@ public class AddDirectionStyleDialog extends FCLDialog implements View.OnClickLi
                     buttonStyle.setFillColorPressed(style.getFillColorPressed());
                     changeDirectionStyle();
                 });
+                dialog.setGameMenu(menu);
                 dialog.show();
             });
         }
@@ -315,7 +313,7 @@ public class AddDirectionStyleDialog extends FCLDialog implements View.OnClickLi
 
         container.addView(style.styleTypeProperty().get() == ControlDirectionStyle.Type.BUTTON ? buttonStyleLayout : rockerStyleLayout);
         typeSpinner.setSelection(style.styleTypeProperty().get() == ControlDirectionStyle.Type.BUTTON ? 0 : 1);
-        FXUtils.bindSelection(typeSpinner, style.styleTypeProperty());
+        typeSpinner.setOnItemSelectedListener((index, item) -> style.styleTypeProperty().set(types.get(index)));
         style.styleTypeProperty().addListener(observable -> {
             container.removeAllViewsInLayout();
             container.addView(style.styleTypeProperty().get() == ControlDirectionStyle.Type.BUTTON ? buttonStyleLayout : rockerStyleLayout);
@@ -378,5 +376,9 @@ public class AddDirectionStyleDialog extends FCLDialog implements View.OnClickLi
         });
         dialog.getEditText().setInputType(EditorInfo.TYPE_NUMBER_FLAG_DECIMAL);
         dialog.show();
+    }
+
+    public void setGameMenu(GameMenu menu) {
+        this.menu = menu;
     }
 }

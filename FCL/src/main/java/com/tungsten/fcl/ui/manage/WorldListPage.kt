@@ -1,9 +1,6 @@
 package com.tungsten.fcl.ui.manage
 
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
@@ -14,8 +11,6 @@ import com.tungsten.fcl.activity.MainActivity
 import com.tungsten.fcl.databinding.PageManageWorldBinding
 import com.tungsten.fcl.setting.Profile
 import com.tungsten.fcl.ui.manage.ManageUI.VersionLoadable
-import com.tungsten.fcl.util.AndroidUtils
-import com.tungsten.fcl.util.RequestCodes
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.fakefx.beans.Observable
 import com.tungsten.fclcore.fakefx.beans.property.BooleanProperty
@@ -26,13 +21,9 @@ import com.tungsten.fclcore.fakefx.collections.FXCollections
 import com.tungsten.fclcore.game.World
 import com.tungsten.fclcore.task.Task
 import com.tungsten.fclcore.util.Logging
-import com.tungsten.fcllibrary.browser.FileBrowser
-import com.tungsten.fcllibrary.browser.options.LibMode
-import com.tungsten.fcllibrary.browser.options.SelectionMode
-import com.tungsten.fcllibrary.component.ResultListener
 import com.tungsten.fcllibrary.component.dialog.EditDialog
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog
-import com.tungsten.fcllibrary.component.ui.FCLCommonPage
+import com.tungsten.fcllibrary.component.ui.FCLPage
 import com.tungsten.fcllibrary.component.view.FCLUILayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,9 +39,9 @@ import java.util.logging.Level
 import java.util.stream.Collectors
 import kotlin.coroutines.resume
 import kotlin.io.path.pathString
+import com.mio.util.getLocalizedText
 
-class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) :
-    FCLCommonPage(context, id, parent, resId), VersionLoadable, View.OnClickListener {
+class WorldListPage(context: Context?, id: Int) : FCLPage(context, id, R.layout.page_manage_world), VersionLoadable, View.OnClickListener {
     private val itemsProperty: ListProperty<WorldListItem> =
         SimpleListProperty(FXCollections.observableArrayList())
 
@@ -78,7 +69,6 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
                         WorldListItem(
                             context,
                             activity,
-                            parent,
                             it
                         )
                     }.collect(
@@ -115,12 +105,15 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
             binding.add -> add()
             binding.refresh -> refresh()
             binding.fixPrivate -> {
-                Files.walk(savesDir).forEach { path ->
-                    Files.setAttribute(
-                        path,
-                        "unix:mode",
-                        1535
-                    )
+                // use 关闭 Files.walk 的目录流，避免文件描述符泄漏
+                Files.walk(savesDir).use { stream ->
+                    stream.forEach { path ->
+                        Files.setAttribute(
+                            path,
+                            "unix:mode",
+                            1535
+                        )
+                    }
                 }
                 Toast.makeText(context, R.string.message_success, Toast.LENGTH_LONG).show()
             }
@@ -151,7 +144,6 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
                         WorldListItem(
                             context,
                             activity,
-                            parent,
                             it
                         )
                     }.collect(
@@ -180,14 +172,8 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
 
     fun add() {
         MainActivity.getInstance().fileLauncher.launchSingleSelection(null, listOf(".zip")) {
-            var path = it[0]
-            val uri = Uri.parse(path)
-            if (AndroidUtils.isDocUri(uri)) {
-                path =
-                    AndroidUtils.copyFileToDir(activity, uri, File(FCLPath.CACHE_DIR))
-            }
-            val file = File(path)
-            installWorld(file)
+            val selected = it?.get(0) ?: return@launchSingleSelection
+            installWorld(selected.toFile(activity, File(FCLPath.CACHE_DIR)))
         }
     }
 
@@ -213,7 +199,7 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
                 builder1.setAlertLevel(FCLAlertDialog.AlertLevel.ALERT)
                 builder1.setMessage(context.getString(R.string.world_import_invalid))
                 builder1.setNegativeButton(
-                    context.getString(com.tungsten.fcllibrary.R.string.dialog_positive),
+                    context.getString(com.tungsten.fcl.R.string.dialog_positive),
                     null
                 )
                 builder1.create().show()
@@ -227,18 +213,17 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
                 }
             }.onFailure {
                 val error = when (it) {
-                    is FileAlreadyExistsException -> AndroidUtils.getLocalizedText(
-                        context,
-                        "world_import_failed",
+                    is FileAlreadyExistsException -> context.getString(
+                        R.string.world_import_failed,
                         context.getString(R.string.world_import_already_exists)
                     )
 
-                    is IOException if it.cause is InvalidPathException -> AndroidUtils.getLocalizedText(
+                    is IOException if it.cause is InvalidPathException -> getLocalizedText(
                         context,
                         context.getString(R.string.install_new_game_malformed)
                     )
 
-                    else -> AndroidUtils.getLocalizedText(
+                    else -> getLocalizedText(
                         context,
                         it.javaClass.getName() + ": " + it.localizedMessage
                     )
@@ -249,7 +234,6 @@ class WorldListPage(context: Context, id: Int, parent: FCLUILayout, resId: Int) 
                     WorldListItem(
                         context,
                         activity,
-                        parent,
                         World(savesDir.resolve(name))
                     )
                 )

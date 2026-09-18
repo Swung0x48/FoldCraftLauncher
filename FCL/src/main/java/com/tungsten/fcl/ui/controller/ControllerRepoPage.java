@@ -10,10 +10,11 @@ import android.widget.ArrayAdapter;
 import android.widget.ScrollView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatDialog;
 import androidx.appcompat.widget.AppCompatSpinner;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.mio.download.DownloadManager;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -24,10 +25,7 @@ import com.tungsten.fcl.control.download.ControllerVersion;
 import com.tungsten.fcl.setting.Controller;
 import com.tungsten.fcl.setting.Controllers;
 import com.tungsten.fcl.setting.DownloadProviders;
-import com.tungsten.fcl.ui.PageManager;
-import com.tungsten.fcl.ui.TaskDialog;
-import com.tungsten.fcl.util.FXUtils;
-import com.tungsten.fcl.util.TaskCancellationAction;
+import com.tungsten.fcl.ui.UIManager;
 import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.fakefx.beans.property.ObjectProperty;
 import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty;
@@ -43,13 +41,12 @@ import com.tungsten.fclcore.util.io.FileUtils;
 import com.tungsten.fclcore.util.io.NetworkUtils;
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.component.theme.ThemeEngine;
-import com.tungsten.fcllibrary.component.ui.FCLCommonPage;
+import com.tungsten.fcllibrary.component.ui.FCLPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
 import com.tungsten.fcllibrary.component.view.FCLEditText;
 import com.tungsten.fcllibrary.component.view.FCLImageButton;
 import com.tungsten.fcllibrary.component.view.FCLProgressBar;
 import com.tungsten.fcllibrary.component.view.FCLSpinner;
-import com.tungsten.fcllibrary.component.view.FCLUILayout;
 import com.tungsten.fcllibrary.util.LocaleUtils;
 
 import java.io.File;
@@ -61,7 +58,7 @@ import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class ControllerRepoPage extends FCLCommonPage implements View.OnClickListener, AdapterView.OnItemSelectedListener {
+public class ControllerRepoPage extends FCLPage implements View.OnClickListener, AdapterView.OnItemSelectedListener {
 
     public static final String CONTROLLER_GITHUB = "https://raw.githubusercontent.com/FCL-Team/FCL-Controllers/main/";
     public static final String CONTROLLER_GIT_CN = "https://repo.miawa.cn/fcl_controllers/";
@@ -74,7 +71,9 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
     private FCLEditText nameEditText;
     private AppCompatSpinner sourceSpinner;
     private AppCompatSpinner langSpinner;
-    private FCLSpinner<ControllerCategory> categorySpinner;
+    private FCLSpinner<String> categorySpinner;
+    /** 分类数据（与 spinner 显示的本地化文本按下标对应） */
+    private final ArrayList<ControllerCategory> categoryData = new ArrayList<>();
     private AppCompatSpinner deviceSpinner;
 
     private FCLButton check;
@@ -84,8 +83,8 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
     private FCLProgressBar progressBar;
     private FCLImageButton retry;
 
-    public ControllerRepoPage(Context context, int id, FCLUILayout parent, int resId) {
-        super(context, id, parent, resId);
+    public ControllerRepoPage(Context context, int id) {
+        super(context, id, R.layout.page_controller_repo);
     }
 
     public void setLoading(boolean loading) {
@@ -144,8 +143,8 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
             ArrayList<ControllerCategory> categories = (ArrayList<ControllerCategory>) s[1];
             refreshCategories(categories);
             ControllerListAdapter adapter = new ControllerListAdapter(getContext(), source, categories, indexes, mod -> {
-                ControllerDownloadPage page = new ControllerDownloadPage(getContext(), PageManager.PAGE_ID_TEMP, getParent(), R.layout.page_controller_download, source, ControllerCategory.getLocaledCategories(getContext(), categories, mod.getCategories()), mod);
-                ControllerPageManager.getInstance().showTempPage(page);
+                ControllerDownloadPage page = new ControllerDownloadPage(getContext(), FCLPage.PAGE_ID_TEMP, source, ControllerCategory.getLocaledCategories(getContext(), categories, mod.getCategories()), mod);
+                UIManager.getInstance().getControllerUI().showTempPage(page);
             });
             recyclerView.setAdapter(adapter);
         }).whenComplete(Schedulers.androidUIThread(), exception -> {
@@ -186,15 +185,13 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
 
     private void refreshCategories(ArrayList<ControllerCategory> categoryDataList) {
         if (refreshCategory) {
-            FXUtils.unbindSelection(categorySpinner, categoryProperty);
+            categoryData.clear();
+            categoryData.addAll(categoryDataList);
             categoryProperty.set(new ControllerCategory(0, null));
-            categorySpinner.setDataList(categoryDataList);
             ArrayList<String> categoryStringList = categoryDataList.stream().map(c -> c.getText(getContext())).collect(Collectors.toCollection(ArrayList::new));
-            ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(getContext(), R.layout.item_spinner_auto_tint, categoryStringList);
-            categoryAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
-            categorySpinner.setAdapter(categoryAdapter);
+            categorySpinner.setItems(categoryStringList);
             categorySpinner.setSelection(0);
-            FXUtils.bindSelection(categorySpinner, categoryProperty);
+            categorySpinner.setOnItemSelectedListener((index, item) -> categoryProperty.set(categoryData.get(index)));
             refreshCategory = false;
         }
     }
@@ -258,21 +255,20 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
         String cache = FCLPath.CACHE_DIR + "/control/" + id + ".json";
         boolean exist = new File(destPath).exists();
         Controller old = exist ? Controllers.findControllerById(id) : null;
-        TaskDialog taskDialog = new TaskDialog(getContext(), new TaskCancellationAction(AppCompatDialog::dismiss));
-        taskDialog.setTitle(getContext().getString(R.string.message_downloading));
-        TaskExecutor executor = Task.composeAsync(() -> {
+        FileDownloadTask fileTask = new FileDownloadTask(NetworkUtils.toURL(url), new File(destPath));
+        fileTask.setName(id);
+        Task<Void> downloadTask = Task.composeAsync(() -> {
             if (exist && old != null) {
                 FileUtils.copyFile(new File(destPath), new File(cache));
-                ((ControllerManagePage) ControllerPageManager.getInstance().getPageById(ControllerPageManager.PAGE_ID_CONTROLLER_MANAGER)).removeController(old);
+                ((ControllerManagePage) UIManager.getInstance().getControllerUI().getPage(0)).removeController(old);
             }
-            FileDownloadTask task = new FileDownloadTask(NetworkUtils.toURL(url), new File(destPath));
-            task.setName(id);
-            return task;
-        }).whenComplete(Schedulers.defaultScheduler(), exception -> {
+            return fileTask;
+        });
+        TaskExecutor executor = downloadTask.whenComplete(Schedulers.defaultScheduler(), exception -> {
             if (exception != null) {
                 if (new File(cache).exists()) {
                     FileUtils.copyFile(new File(cache), new File(destPath));
-                    ((ControllerManagePage) ControllerPageManager.getInstance().getPageById(ControllerPageManager.PAGE_ID_CONTROLLER_MANAGER)).addController(old);
+                    ((ControllerManagePage) UIManager.getInstance().getControllerUI().getPage(0)).addController(old);
                 }
                 Schedulers.androidUIThread().execute(() -> {
                     if (exception instanceof CancellationException) {
@@ -283,7 +279,7 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
                         builder.setCancelable(false);
                         builder.setTitle(getContext().getString(R.string.install_failed_downloading));
                         builder.setMessage(DownloadProviders.localizeErrorMessage(getContext(), exception));
-                        builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                        builder.setNegativeButton(getContext().getString(com.tungsten.fcl.R.string.dialog_positive), null);
                         builder.create().show();
                     }
                 });
@@ -293,12 +289,11 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
                         .registerTypeAdapterFactory(new JavaFxPropertyTypeAdapterFactory(true, true))
                         .setPrettyPrinting()
                         .create().fromJson(FileUtils.readText(new File(destPath)), Controller.class);
-                ((ControllerManagePage) ControllerPageManager.getInstance().getPageById(ControllerPageManager.PAGE_ID_CONTROLLER_MANAGER)).addController(controller);
+                ((ControllerManagePage) UIManager.getInstance().getControllerUI().getPage(0)).addController(controller);
                 Schedulers.androidUIThread().execute(() -> Toast.makeText(getContext(), getContext().getString(R.string.install_success), Toast.LENGTH_SHORT).show());
             }
         }).executor();
-        taskDialog.setExecutor(executor);
-        taskDialog.show();
+        DownloadManager.submit(id, fileTask, executor);
         executor.start();
     }
 
@@ -354,10 +349,6 @@ public class ControllerRepoPage extends FCLCommonPage implements View.OnClickLis
         Controllers.addCallback(() -> checkUpdate(LocaleUtils.isChinese(getContext()) ? 1 : 0, false));
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-    }
 
     @Override
     public Task<?> refresh(Object... param) {

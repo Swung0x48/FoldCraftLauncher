@@ -6,25 +6,28 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.mio.ui.adapter.ViewHolder
+import com.mio.util.LoginStageTextBinder
 import com.mio.util.copyToClipBoard
 import com.tungsten.fcl.R
 import com.tungsten.fcl.activity.MainActivity
 import com.tungsten.fcl.databinding.ItemAccountBinding
 import com.tungsten.fcl.setting.Accounts
 import com.tungsten.fcl.ui.UIManager.Companion.instance
-import com.tungsten.fclcore.auth.authlibinjector.AuthlibInjectorAccount
+import com.tungsten.fclcore.auth.microsoft.MicrosoftAccount
 import com.tungsten.fclcore.auth.offline.OfflineAccount
 import com.tungsten.fclcore.auth.offline.Skin
+import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.task.Schedulers
-import com.tungsten.fclcore.task.Task
 import com.tungsten.fcllibrary.component.dialog.EditDialog
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog
-import java.util.Objects
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ExecutionException
 
 class AccountListAdapter(
     private val context: Context,
@@ -47,12 +50,12 @@ class AccountListAdapter(
         val binding = ItemAccountBinding.bind(holder.itemView)
         binding.radio.isChecked = item.account == Accounts.getSelectedAccount()
         binding.avatar.imageProperty().unbind()
-        binding.avatar.imageProperty().bind(item.imageProperty())
+        binding.avatar.imageProperty().bind(item.image)
         binding.name.stringProperty().unbind()
-        binding.name.stringProperty().bind(item.titleProperty())
+        binding.name.stringProperty().bind(item.title)
         binding.name.setSelected(true)
         binding.type.stringProperty().unbind()
-        binding.type.stringProperty().bind(item.subtitleProperty())
+        binding.type.stringProperty().bind(item.subtitle)
         binding.type.setSelected(true)
         binding.skin.setVisibility(
             if (item.canUploadSkin().get()) View.VISIBLE else View.INVISIBLE
@@ -67,16 +70,34 @@ class AccountListAdapter(
         binding.refresh.setOnClickListener {
             binding.refresh.setVisibility(View.INVISIBLE)
             binding.refreshProgress.visibility = View.VISIBLE
+            // 微软账户刷新期间，副标题位置替换为实时登录阶段文字
+            val microsoft = item.account as? MicrosoftAccount
+            if (microsoft != null) {
+                val typeProperty = binding.type.stringProperty()
+                typeProperty.unbind()
+                binding.type.setVisibility(View.GONE)
+                binding.loginProgress.setVisibility(View.VISIBLE)
+                microsoft.setProgressCallback(LoginStageTextBinder(context, binding.loginProgress))
+            }
             item.refreshAsync()
                 .whenComplete(Schedulers.androidUIThread()) { ex: Exception? ->
                     binding.refresh.setVisibility(View.VISIBLE)
                     binding.refreshProgress.visibility = View.INVISIBLE
+                    if (microsoft != null) {
+                        microsoft.setProgressCallback(null)
+                        // 恢复副标题的属性绑定（bind 会自动同步当前值）
+                        val typeProperty = binding.type.stringProperty()
+                        typeProperty.unbind()
+                        typeProperty.bind(item.subtitle)
+                        binding.type.setVisibility(View.VISIBLE)
+                        binding.loginProgress.setVisibility(View.GONE)
+                    }
                     if (ex != null) {
                         val builder1 = FCLAlertDialog.Builder(context)
                         builder1.setAlertLevel(FCLAlertDialog.AlertLevel.ALERT)
                         builder1.setMessage(Accounts.localizeErrorMessage(context, ex))
                         builder1.setNegativeButton(
-                            context.getString(com.tungsten.fcllibrary.R.string.dialog_positive),
+                            context.getString(com.tungsten.fcl.R.string.dialog_positive),
                             null
                         )
                         builder1.create().show()
@@ -86,58 +107,22 @@ class AccountListAdapter(
                 }.start()
         }
         binding.skin.setOnClickListener {
-            try {
-                if (item.account is AuthlibInjectorAccount) {
-                    Thread {
-                        try {
-                            val uploadTask =
-                                Objects.requireNonNull<CompletableFuture<Task<*>?>>(item.uploadSkin())
-                                    .get()
-                            Schedulers.androidUIThread().execute {
-                                if (uploadTask != null) {
-                                    binding.skin.setVisibility(View.INVISIBLE)
-                                    binding.skinProgress.visibility = View.VISIBLE
-                                    uploadTask
-                                        .whenComplete(
-                                            Schedulers.androidUIThread()
-                                        ) {
-                                            binding.skin.setVisibility(View.VISIBLE)
-                                            binding.skinProgress.visibility = View.INVISIBLE
-                                            item.refreshSkinBinding()
-                                        }
-                                        .start()
-                                }
-                            }
-                        } catch (e: ExecutionException) {
-                            e.printStackTrace()
-                        } catch (e: InterruptedException) {
-                            e.printStackTrace()
+            MainActivity.getInstance().lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    item.uploadSkin(
+                        onUploading = {
+                            binding.skin.visibility = View.INVISIBLE
+                            binding.skinProgress.visibility = View.VISIBLE
                         }
-                    }.start()
-                } else if (item.account is OfflineAccount) {
-                    val dialog = OfflineAccountSkinDialog(context, item)
-                    dialog.show()
-                } else {
-                    val uploadTask =
-                        Objects.requireNonNull<CompletableFuture<Task<*>?>>(item.uploadSkin()).get()
-                    if (uploadTask != null) {
-                        binding.skin.setVisibility(View.INVISIBLE)
-                        binding.skinProgress.visibility = View.VISIBLE
-                        uploadTask
-                            .whenComplete(
-                                Schedulers.androidUIThread()
-                            ) {
-                                binding.skin.setVisibility(View.VISIBLE)
-                                binding.skinProgress.visibility = View.INVISIBLE
-                                item.refreshSkinBinding()
-                            }
-                            .start()
+                    )
+                    withContext(Dispatchers.Main) {
+                        binding.skin.visibility = View.VISIBLE
+                        binding.skinProgress.visibility = View.INVISIBLE
+                        item.refreshSkinBinding()
                     }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-            } catch (e: ExecutionException) {
-                e.printStackTrace()
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
             }
         }
         binding.copyUuid.setOnClickListener {
@@ -155,7 +140,7 @@ class AccountListAdapter(
                         }
                     Accounts.FACTORY_OFFLINE.create(item.account.username, uuid)
                         .apply {
-                            skin = (item.account as OfflineAccount).skin
+                            skin = item.account.skin
                             Accounts.replaceAccount(item.account.uuid, this)
                             Accounts.setSelectedAccount(this)
                         }
@@ -171,7 +156,7 @@ class AccountListAdapter(
             builder.setMessage(
                 String.format(
                     context.getString(R.string.version_manage_remove_confirm),
-                    item.title
+                    item.title.get()
                 )
             )
             builder.setPositiveButton {
@@ -189,9 +174,12 @@ class AccountListAdapter(
                 null,
                 listOf(".png")
             ) {
-                val path = it[0]
-                (item.account as OfflineAccount).skin =
-                    Skin(Skin.Type.LOCAL_FILE, "", null, path, null)
+                val selected = it?.get(0) ?: return@launchSingleSelection
+                // 皮肤路径会持久化到 accounts.json，文件必须放在不受缓存清理影响的固定位置
+                val dest = File(FCLPath.SKIN_DIR, "${item.account.uuid}.png")
+                selected.copyTo(context, dest)
+                item.account.skin =
+                    Skin(Skin.Type.LOCAL_FILE, null, dest.absolutePath, null)
                 item.refreshSkinBinding()
             }
             return@setOnLongClickListener true

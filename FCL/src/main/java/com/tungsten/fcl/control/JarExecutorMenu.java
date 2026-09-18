@@ -32,7 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 
-public class JarExecutorMenu implements MenuCallback, View.OnClickListener, View.OnTouchListener {
+public class JarExecutorMenu implements MenuCallback, FCLBridgeCallback, View.OnClickListener, View.OnTouchListener {
 
     private FCLActivity activity;
     private FCLBridge fclBridge;
@@ -120,7 +120,7 @@ public class JarExecutorMenu implements MenuCallback, View.OnClickListener, View
 
     @Override
     public FCLBridgeCallback getCallbackBridge() {
-        return new JarExecutorProcessListener(this);
+        return this;
     }
 
     @Override
@@ -295,34 +295,5 @@ public class JarExecutorMenu implements MenuCallback, View.OnClickListener, View
     @NonNull
     public final <T extends View> T findViewById(int id) {
         return getLayout().findViewById(id);
-    }
-
-    static class JarExecutorProcessListener implements FCLBridgeCallback {
-
-        private final JarExecutorMenu menu;
-
-        public JarExecutorProcessListener(JarExecutorMenu menu) {
-            this.menu = menu;
-        }
-
-        @Override
-        public void onCursorModeChange(int mode) {
-            menu.onCursorModeChange(mode);
-        }
-
-        @Override
-        public void onHitResultTypeChange(int type) {
-            // Ignore
-        }
-
-        @Override
-        public void onLog(String log) {
-            menu.onLog(log);
-        }
-
-        @Override
-        public void onExit(int code) {
-            menu.onExit(code);
-        }
     }
 }

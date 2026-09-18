@@ -4,24 +4,24 @@ import android.content.Context
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
+import com.mio.skin.SkinRenderer
+import com.mio.util.getScreenHeight
+import com.mio.util.getScreenWidth
 import com.tungsten.fcl.R
 import com.tungsten.fcl.activity.MainActivity
 import com.tungsten.fcl.databinding.DialogOfflineAccountSkinBinding
 import com.tungsten.fcl.game.TexturesLoader
-import com.tungsten.fcl.util.AndroidUtils
-import com.tungsten.fcl.util.FXUtils
+import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.auth.offline.OfflineAccount
 import com.tungsten.fclcore.auth.offline.Skin
 import com.tungsten.fclcore.auth.offline.Skin.LoadedSkin
 import com.tungsten.fclcore.auth.yggdrasil.TextureModel
-import com.tungsten.fclcore.fakefx.beans.InvalidationListener
-import com.tungsten.fclcore.fakefx.beans.property.ObjectProperty
-import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty
 import com.tungsten.fclcore.task.Schedulers
 import com.tungsten.fclcore.util.Logging
 import com.tungsten.fclcore.util.StringUtils
 import com.tungsten.fcllibrary.component.dialog.FCLDialog
-import com.tungsten.fcllibrary.skin.SkinRenderer
+import com.tungsten.fcllibrary.component.view.FCLTextView
+import java.io.File
 import java.util.logging.Level
 
 class OfflineAccountSkinDialog(context: Context, private val accountListItem: AccountListItem) :
@@ -30,10 +30,9 @@ class OfflineAccountSkinDialog(context: Context, private val accountListItem: Ac
     private var binding: DialogOfflineAccountSkinBinding =
         DialogOfflineAccountSkinBinding.inflate(layoutInflater)
     private val renderer: SkinRenderer
-    private val skinBinding: InvalidationListener
-    private val typeProperty: ObjectProperty<Skin.Type> =
-        SimpleObjectProperty(this, "type", Skin.Type.DEFAULT)
-    private var isFirst = true
+
+    /** Texture model chosen via the classic/slim RadioGroup */
+    private var model: TextureModel = TextureModel.STEVE
 
     init {
         setContentView(binding.root)
@@ -41,69 +40,32 @@ class OfflineAccountSkinDialog(context: Context, private val accountListItem: Ac
 
         renderer = SkinRenderer(getContext())
         binding.skinView.setRenderer(renderer, 5f)
-        binding.defaultSkin.setOnClickListener(this)
-        binding.steve.setOnClickListener(this)
-        binding.alex.setOnClickListener(this)
-        binding.local.setOnClickListener(this)
-        binding.csl.setOnClickListener(this)
 
+        binding.modelClassic.setOnClickListener(this)
+        binding.modelSlim.setOnClickListener(this)
         binding.skinPath.setOnClickListener(this)
+        binding.skinPathReset.setOnClickListener(this)
         binding.capePath.setOnClickListener(this)
+        binding.capePathReset.setOnClickListener(this)
         binding.positive.setOnClickListener(this)
         binding.negative.setOnClickListener(this)
-        if (account.skin == null) {
-            refreshRadio(0)
-            typeProperty.set(Skin.Type.DEFAULT)
+
+        // Restore state from existing skin
+        val skin = account.skin
+        if (skin == null) {
+            model = TextureModel.detectUUID(account.uuid)
         } else {
-            when (account.skin.type) {
-                Skin.Type.STEVE -> {
-                    refreshRadio(1)
-                    typeProperty.set(Skin.Type.STEVE)
-                }
-
-                Skin.Type.ALEX -> {
-                    refreshRadio(2)
-                    typeProperty.set(Skin.Type.ALEX)
-                }
-
-                Skin.Type.LOCAL_FILE -> {
-                    refreshRadio(3)
-                    typeProperty.set(Skin.Type.LOCAL_FILE)
-                }
-
-                Skin.Type.CUSTOM_SKIN_LOADER_API -> {
-                    refreshRadio(4)
-                    typeProperty.set(Skin.Type.CUSTOM_SKIN_LOADER_API)
-                }
-
-                else -> {
-                    refreshRadio(0)
-                    typeProperty.set(Skin.Type.DEFAULT)
-                }
-            }
-            binding.skinPathText.string = account.skin.localSkinPath
-            binding.capePathText.string = account.skin.localCapePath
-            binding.cslUrl.setText(account.skin.cslApi)
+            // Restore model: legacy ALEX -> slim, otherwise from stored texture model
+            model = if (skin.type() == Skin.Type.ALEX) TextureModel.ALEX else skin.textureModel()
+            binding.skinPathText.string = skin.localSkinPath()
+            binding.capePathText.string = skin.localCapePath()
         }
-        skinBinding = FXUtils.observeWeak(
-            {
-                if (isFirst) {
-                    isFirst = false
-                    return@observeWeak
-                }
-                Logging.LOG.log(Level.INFO, "========== refreshSkin by skinBinding ==========")
-                this.refreshSkin()
-            },
-            typeProperty,
-            binding.cslUrl.stringProperty(),
-            binding.skinPathText.stringProperty(),
-            binding.capePathText.stringProperty()
-        )
+        refreshModelRadio()
     }
 
     override fun show() {
-        val width = AndroidUtils.getScreenWidth()
-        var height = AndroidUtils.getScreenHeight()
+        val width = getScreenWidth()
+        var height = getScreenHeight()
         height = if (height * 2 < width) {
             WindowManager.LayoutParams.MATCH_PARENT
         } else {
@@ -112,7 +74,6 @@ class OfflineAccountSkinDialog(context: Context, private val accountListItem: Ac
         window?.setLayout(width * 2 / 3, height)
         super.show()
         binding.skinView.onResume()
-        Logging.LOG.log(Level.INFO, "========== refreshSkin by show() ==========")
         refreshSkin()
     }
 
@@ -122,7 +83,7 @@ class OfflineAccountSkinDialog(context: Context, private val accountListItem: Ac
     }
 
     private fun refreshSkin() {
-        this.skin.load(account.username)
+        this.skin.load()
             .whenComplete(
                 Schedulers.androidUIThread()
             ) { result: LoadedSkin?, exception: Exception? ->
@@ -134,94 +95,117 @@ class OfflineAccountSkinDialog(context: Context, private val accountListItem: Ac
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    if (result == null || result.skin == null && result.cape == null) {
-                        renderer.setTexture(
-                            TexturesLoader.getDefaultSkin(
-                                TextureModel.detectUUID(
-                                    account.uuid
-                                )
-                            ).image, null
+                    // Model is controlled by the user's classic/slim selection
+                    val slim = model == TextureModel.ALEX
+                    if (result == null || result.skin() == null && result.cape() == null) {
+                        // No custom skin selected: fall back to the default skin of the chosen model
+                        renderer.updateTexture(
+                            TexturesLoader.getDefaultSkin(model).image(),
+                            null,
+                            slim
                         )
                         return@whenComplete
                     }
-                    renderer.setTexture(
-                        if (result.skin != null) result.skin
+                    renderer.updateTexture(
+                        if (result.skin() != null) result.skin()
                             .image else TexturesLoader.getDefaultSkin(
-                            TextureModel.detectUUID(
-                                account.uuid
-                            )
-                        ).image,
-                        if (result.cape != null) result.cape.image else null
+                            model
+                        ).image(),
+                        if (result.cape() != null) result.cape().image else null,
+                        slim
                     )
                 }
             }.start()
     }
 
-    private fun refreshRadio(position: Int) {
-        binding.defaultSkin.setChecked(position == 0)
-        binding.steve.setChecked(position == 1)
-        binding.alex.setChecked(position == 2)
-        binding.local.setChecked(position == 3)
-        binding.csl.setChecked(position == 4)
-        binding.localLayout.visibility = if (position == 3) View.VISIBLE else View.GONE
-        binding.cslLayout.visibility = if (position == 4) View.VISIBLE else View.GONE
+    private fun refreshModelRadio() {
+        binding.modelClassic.setChecked(model == TextureModel.STEVE)
+        binding.modelSlim.setChecked(model == TextureModel.ALEX)
     }
 
     private val skin: Skin
-        get() = Skin(
-            typeProperty.get(),
-            binding.cslUrl.stringValue ?: "",
-            null,
-            if (StringUtils.isBlank(binding.skinPathText.string)) null else binding.skinPathText.string,
-            if (StringUtils.isBlank(binding.capePathText.string)) null else binding.capePathText.string
-        )
+        get() {
+            val skinPath = binding.skinPathText.string
+            val capePath = binding.capePathText.string
+            val hasSkin = StringUtils.isNotBlank(skinPath)
+            val hasCape = StringUtils.isNotBlank(capePath)
+            return if (hasSkin || hasCape) {
+                Skin(
+                    Skin.Type.LOCAL_FILE,
+                    model,
+                    if (hasSkin) skinPath else null,
+                    if (hasCape) capePath else null
+                )
+            } else {
+                Skin(Skin.Type.DEFAULT, model, null, null)
+            }
+        }
 
     override fun onClick(view: View?) {
-        if (view === binding.defaultSkin) {
-            refreshRadio(0)
-            typeProperty.set(Skin.Type.DEFAULT)
-        }
-        if (view === binding.steve) {
-            refreshRadio(1)
-            typeProperty.set(Skin.Type.STEVE)
-        }
-        if (view === binding.alex) {
-            refreshRadio(2)
-            typeProperty.set(Skin.Type.ALEX)
-        }
-        if (view === binding.local) {
-            refreshRadio(3)
-            typeProperty.set(Skin.Type.LOCAL_FILE)
-        }
-        if (view === binding.csl) {
-            refreshRadio(4)
-            typeProperty.set(Skin.Type.CUSTOM_SKIN_LOADER_API)
-        }
+        when (view) {
+            // Model selection
+            binding.modelClassic -> {
+                model = TextureModel.STEVE
+                refreshModelRadio()
+                refreshSkin()
+            }
 
-        if (view === binding.skinPath) {
-            MainActivity.getInstance().fileLauncher.launchSingleSelection(
+            binding.modelSlim -> {
+                model = TextureModel.ALEX
+                refreshModelRadio()
+                refreshSkin()
+            }
+            // File selection：先放缓存，点确认时才落位 SKIN_DIR，取消不影响已有皮肤文件
+            binding.skinPath -> MainActivity.getInstance().fileLauncher.launchSingleSelection(
                 null,
                 listOf(".png")
             ) {
-                binding.skinPathText.string = it[0]
+                binding.skinPathText.string =
+                    it?.get(0)?.toFile(context, File(FCLPath.CACHE_DIR))?.absolutePath
+                        ?: return@launchSingleSelection
+                refreshSkin()
             }
-        }
-        if (view === binding.capePath) {
-            MainActivity.getInstance().fileLauncher.launchSingleSelection(
+
+            binding.skinPathReset -> {
+                binding.skinPathText.string = null
+                refreshSkin()
+            }
+
+            binding.capePath -> MainActivity.getInstance().fileLauncher.launchSingleSelection(
                 null,
                 listOf(".png")
             ) {
-                binding.capePathText.string = it[0]
+                binding.capePathText.string =
+                    it?.get(0)?.toFile(context, File(FCLPath.CACHE_DIR))?.absolutePath
+                        ?: return@launchSingleSelection
+                refreshSkin()
             }
-        }
 
-        if (view === binding.positive) {
-            account.setSkin(this.skin)
-            accountListItem.refreshSkinBinding()
-            dismiss()
+            binding.capePathReset -> {
+                binding.capePathText.string = null
+                refreshSkin()
+            }
+            // Buttons
+            binding.positive -> {
+                commitSkinFile(binding.skinPathText, "${account.uuid}.png")
+                commitSkinFile(binding.capePathText, "${account.uuid}_cape.png")
+                account.setSkin(this.skin)
+                accountListItem.refreshSkinBinding()
+                dismiss()
+            }
+
+            binding.negative -> dismiss()
         }
-        if (view === binding.negative) {
-            dismiss()
+    }
+
+    /** 把临时选中的皮肤/披风文件落位到 SKIN_DIR 固定名，并更新为最终路径 */
+    private fun commitSkinFile(text: FCLTextView, fileName: String) {
+        val srcPath = text.string ?: return
+        val src = File(srcPath)
+        val dest = File(FCLPath.SKIN_DIR, fileName)
+        if (src.canonicalPath != dest.canonicalPath) {
+            runCatching { src.copyTo(dest, overwrite = true) }
+                .onSuccess { text.string = dest.absolutePath }
         }
     }
 }

@@ -60,23 +60,25 @@ public class ModVersionAdapter extends FCLAdapter {
             viewHolder.name = view.findViewById(R.id.name);
             viewHolder.tag = view.findViewById(R.id.tag);
             viewHolder.date = view.findViewById(R.id.date);
-            viewHolder.parent.setStateListAnimator(AnimatorInflater.loadStateListAnimator(getContext(), com.tungsten.fcllibrary.R.xml.anim_scale));
+            viewHolder.parent.setStateListAnimator(AnimatorInflater.loadStateListAnimator(getContext(), com.tungsten.fcl.R.xml.anim_scale));
             view.setTag(viewHolder);
+            // 仅首次创建时播放滑入动画：convertView 复用（滚动/布局变化重绑定）时不重播，
+            // 避免截图等异步加载完成触发布局变化导致列表动画重复
+            AnimUtil.playTranslationX(view, ThemeEngine.getInstance().getTheme().getAnimationSpeed() * 30L, -100f, 0f).start();
         } else {
             viewHolder = (ViewHolder) view.getTag();
         }
         RemoteMod.Version version = list.get(i);
         viewHolder.parent.setOnClickListener(v -> callback.onItemSelect(version));
-        viewHolder.name.setText(version.getName());
+        viewHolder.name.setText(version.name());
         viewHolder.tag.setText(getTag(getContext(), version));
-        viewHolder.date.setText(FORMATTER.format(version.getDatePublished()));
-        AnimUtil.playTranslationX(view, ThemeEngine.getInstance().getTheme().getAnimationSpeed() * 30L, -100f, 0f).start();
+        viewHolder.date.setText(FORMATTER.format(version.datePublished()));
         return view;
     }
 
     public static String getTag(Context context, RemoteMod.Version version) {
         StringBuilder stringBuilder = new StringBuilder();
-        switch (version.getVersionType()) {
+        switch (version.versionType()) {
             case Beta:
             case Alpha:
                 stringBuilder.append(context.getString(R.string.version_game_snapshot));
@@ -85,7 +87,7 @@ public class ModVersionAdapter extends FCLAdapter {
                 stringBuilder.append(context.getString(R.string.version_game_release));
                 break;
         }
-        for (ModLoaderType modLoaderType : version.getLoaders()) {
+        for (ModLoaderType modLoaderType : version.loaders()) {
             switch (modLoaderType) {
                 case FORGE:
                     stringBuilder.append("   ").append(context.getString(R.string.install_installer_forge));

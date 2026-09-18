@@ -2,12 +2,11 @@ package com.tungsten.fcl.control
 
 import android.annotation.SuppressLint
 import android.view.View
-import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.tungsten.fcl.R
 import com.tungsten.fcl.databinding.DialogOpenFolderBinding
-import com.tungsten.fcl.util.AndroidUtils
 import com.tungsten.fcllibrary.browser.FileBrowser
+import com.tungsten.fcllibrary.browser.SelectedFile
 import com.tungsten.fcllibrary.browser.adapter.FileBrowserAdapter
 import com.tungsten.fcllibrary.browser.adapter.FileBrowserListener
 import com.tungsten.fcllibrary.browser.options.LibMode
@@ -23,6 +22,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import com.mio.util.getScreenHeight
+import com.mio.util.getScreenWidth
 
 class OpenFolderDialog(
     val activity: FCLActivity,
@@ -33,8 +34,8 @@ class OpenFolderDialog(
     private var job: Job? = null
 
     init {
-        val width = (AndroidUtils.getScreenWidth() * 0.7).toInt()
-        val height = (AndroidUtils.getScreenHeight() * 0.9).toInt()
+        val width = (getScreenWidth() * 0.7).toInt()
+        val height = (getScreenHeight() * 0.9).toInt()
         window!!.setLayout(width, height)
         binding = DialogOpenFolderBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -82,6 +83,7 @@ class OpenFolderDialog(
             binding.importButton -> {
                 val targetDir = internalPath
                 activity.fileLauncher.launchMultiSelection(targetDir, null) {
+                    if (it == null) return@launchMultiSelection
                     importFiles(it, targetDir)
                 }
             }
@@ -108,7 +110,7 @@ class OpenFolderDialog(
 
     @SuppressLint("Recycle")
     private fun importFiles(
-        paths: List<String>,
+        files: List<SelectedFile>,
         targetDir: String
     ) {
         job = lifecycleScope.launch(Dispatchers.IO) {
@@ -120,17 +122,10 @@ class OpenFolderDialog(
             }
 
             try {
-                paths.forEach { path ->
+                files.forEach { file ->
                     ensureActive()
-                    val uri = path.toUri()
-                    val (inputStream, name) = if (AndroidUtils.isDocUri(uri)) {
-                        context.contentResolver.openInputStream(uri) to AndroidUtils.getFileName(
-                            context,
-                            uri
-                        )
-                    } else {
-                        Files.newInputStream(Paths.get(path)) to File(path).name
-                    }
+                    val name = file.fileName(context)
+                    val inputStream = file.openInputStream(context)
 
                     runCatching {
                         inputStream?.use { stream ->
@@ -154,7 +149,7 @@ class OpenFolderDialog(
                                     )
                                 )
                                 .setPositiveButton(
-                                    activity.getString(com.tungsten.fcllibrary.R.string.close)
+                                    activity.getString(com.tungsten.fcl.R.string.close)
                                 ) {}.create().show()
                         }
                     }

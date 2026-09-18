@@ -17,6 +17,7 @@ import androidx.appcompat.widget.LinearLayoutCompat;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.MainActivity;
 import com.tungsten.fcl.setting.Controller;
+import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.util.StringUtils;
 import com.tungsten.fcllibrary.component.dialog.FCLDialog;
 import com.tungsten.fcllibrary.component.view.FCLButton;
@@ -25,6 +26,7 @@ import com.tungsten.fcllibrary.component.view.FCLEditText;
 import com.tungsten.fcllibrary.component.view.FCLImageButton;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
 
+import java.io.File;
 import java.util.ArrayList;
 
 public class ControllerUploadDialog extends FCLDialog implements View.OnClickListener, AdapterView.OnItemSelectedListener, CompoundButton.OnCheckedChangeListener {
@@ -32,22 +34,22 @@ public class ControllerUploadDialog extends FCLDialog implements View.OnClickLis
     private final Activity activity;
     private final Callback callback;
 
-    private FCLEditText name;
-    private FCLEditText author;
-    private FCLEditText intro;
-    private FCLEditText description;
+    private final FCLEditText name;
+    private final FCLEditText author;
+    private final FCLEditText intro;
+    private final FCLEditText description;
 
-    private AppCompatSpinner lang;
-    private FCLCheckBox phone;
-    private FCLCheckBox pad;
-    private FCLCheckBox other;
-    private FCLTextView iconText;
-    private FCLImageButton icon;
-    private FCLImageButton screenshot;
-    private LinearLayoutCompat screenshotLayout;
+    private final AppCompatSpinner lang;
+    private final FCLCheckBox phone;
+    private final FCLCheckBox pad;
+    private final FCLCheckBox other;
+    private final FCLTextView iconText;
+    private final FCLImageButton icon;
+    private final FCLImageButton screenshot;
+    private final LinearLayoutCompat screenshotLayout;
 
-    private FCLButton share;
-    private FCLButton negative;
+    private final FCLButton share;
+    private final FCLButton negative;
 
     private String language = "all";
     private final ArrayList<Integer> devices = new ArrayList<>();
@@ -117,7 +119,8 @@ public class ControllerUploadDialog extends FCLDialog implements View.OnClickLis
             ArrayList<String> suffix = new ArrayList<>();
             suffix.add(".png");
             MainActivity.getInstance().fileLauncher.launchSingleSelection(null, suffix, (files) -> {
-                iconText.setText(files.get(0));
+                if (files == null) return;
+                iconText.setText(files.get(0).toFile(activity, new File(FCLPath.CACHE_DIR)).getAbsolutePath());
             });
         }
         if (view == screenshot) {
@@ -125,8 +128,9 @@ public class ControllerUploadDialog extends FCLDialog implements View.OnClickLis
                 ArrayList<String> suffix = new ArrayList<>();
                 suffix.add(".png");
                 MainActivity.getInstance().fileLauncher.launchMultiSelection(null, suffix, (files) -> {
-                    if (!files.isEmpty()) {
-                        files.forEach(r -> {
+                    if (files != null && !files.isEmpty()) {
+                        files.forEach(f -> {
+                            String r = f.toFile(activity, new File(FCLPath.CACHE_DIR)).getAbsolutePath();
                             if (!screenshots.contains(r) && screenshots.size() < 16) {
                                 screenshots.add(r);
                                 Item item = new Item(getContext(), r, screenshots::remove);
