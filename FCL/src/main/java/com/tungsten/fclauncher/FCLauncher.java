@@ -301,8 +301,57 @@ public class FCLauncher {
             envMap.put("POJAVEXEC_EGL", renderer.getEglName());
             if (renderer.isEqual(Renderer.ID_MOBILEGL)) {
                 envMap.put("MOBILEGL_BACKEND_TYPE", "DirectGLES");
+                // Test plumbing (uncommitted): the built-in dev renderer ships the
+                // disaggregated build; the split shims need the transport named, and the
+                // target workload's single 128 MiB uploads need the census/Redmi staging
+                // profile (the 32 MiB default RingOverruns on them, roadmap open issue 11).
+                // The transport is switchable at runtime via /sdcard/FCL/mg_transport.txt
+                // ("inproc", or "monolith" to omit the variable) so split/monolith A-B
+                // runs do not need an APK rebuild.
+                String transport = "inproc";
+                try {
+                    java.io.File sw = new java.io.File("/sdcard/FCL/mg_transport.txt");
+                    if (sw.exists()) {
+                        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+                        java.io.FileInputStream in = new java.io.FileInputStream(sw);
+                        byte[] chunk = new byte[64];
+                        int n;
+                        while ((n = in.read(chunk)) > 0) buf.write(chunk, 0, n);
+                        in.close();
+                        String t = buf.toString("UTF-8").trim();
+                        if (!t.isEmpty()) transport = t;
+                    }
+                } catch (Throwable ignored) {
+                }
+                if (!"monolith".equals(transport)) {
+                    envMap.put("MOBILEGL_TRANSPORT", transport);
+                }
+                envMap.put("MOBILEGL_IPC_STAGE_MB", "256");
+                envMap.put("MOBILEGL_PIPE_STATS", "1");
+                // Test plumbing (uncommitted, P5d): extra MOBILEGL_* variables from
+                // /sdcard/FCL/mg_env.txt, one KEY=VALUE per line, so the A/B arms
+                // (MOBILEGL_IPC_SPIN_US, MOBILEGL_IPC_VERB_BARRIER, ...) need no APK rebuild.
+                try {
+                    java.io.File ef = new java.io.File("/sdcard/FCL/mg_env.txt");
+                    if (ef.exists()) {
+                        java.io.BufferedReader br = new java.io.BufferedReader(
+                                new java.io.InputStreamReader(new java.io.FileInputStream(ef), "UTF-8"));
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            line = line.trim();
+                            int eq = line.indexOf('=');
+                            if (line.isEmpty() || line.startsWith("#") || eq <= 0) continue;
+                            String k = line.substring(0, eq).trim();
+                            String v = line.substring(eq + 1).trim();
+                            if (k.startsWith("MOBILEGL_")) envMap.put(k, v);
+                        }
+                        br.close();
+                    }
+                } catch (Throwable ignored) {
+                }
             } else if (renderer.isEqual(Renderer.ID_MOBILEGL_MAGMA)) {
                 envMap.put("MOBILEGL_BACKEND_TYPE", "DirectVulkan");
+                envMap.put("MOBILEGL_IPC_STAGE_MB", "256");
             }
             return;
         }
