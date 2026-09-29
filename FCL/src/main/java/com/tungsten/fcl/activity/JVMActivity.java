@@ -56,6 +56,14 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
     private static MenuType menuType;
     private static FCLBridge fclBridge;
     private static boolean useTextureView = false;
+    /**
+     * 版本设置「游戏退到后台时不暂停」。开启后：强制用 TextureView（SurfaceView 在界面不可见时
+     * 系统会销毁其 Surface，游戏拿着失效的窗口会创建不了后端；TextureView 的 SurfaceTexture 可以
+     * 留着不销毁）；界面离开前台时不把 SDL 切到 PAUSED，也不撤销 GLFW 的 focused / visible，
+     * 游戏照常渲染。用于画面渲染在别的窗口的渲染器（如 MobileGL render server）；渲染器画在本
+     * 界面上时这样做画面会停住，所以默认关闭。
+     */
+    private static boolean keepRunningInBackground = false;
     private boolean isTranslated = false;
     private static boolean isRunning = false;
     private long volumeDownTime = 0;
@@ -66,9 +74,15 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
     }
 
     public static void setFCLBridge(FCLBridge fclBridge, MenuType menuType, boolean useTextureView) {
+        setFCLBridge(fclBridge, menuType, useTextureView, false);
+    }
+
+    public static void setFCLBridge(FCLBridge fclBridge, MenuType menuType, boolean useTextureView,
+                                    boolean keepRunningInBackground) {
         JVMActivity.fclBridge = fclBridge;
         JVMActivity.menuType = menuType;
-        JVMActivity.useTextureView = useTextureView;
+        JVMActivity.keepRunningInBackground = keepRunningInBackground;
+        JVMActivity.useTextureView = useTextureView || keepRunningInBackground;
     }
 
     @Override
@@ -201,7 +215,9 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
             fclBridge.setSurfaceDestroyed(true);
             fclBridge.setSurfaceHolder(null);
         }
-        notifySdlSurfaceDestroyed();
+        if (!keepRunningInBackground) {
+            notifySdlSurfaceDestroyed();
+        }
     }
 
     @Override
@@ -250,11 +266,17 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
 
     @Override
     public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
+        if (keepRunningInBackground) {
+            // false = 系统不释放这块 SurfaceTexture，游戏继续持有有效的窗口；onDestroy 里再释放
+            return false;
+        }
         if (fclBridge != null) {
             fclBridge.setSurfaceDestroyed(true);
             fclBridge.setSurfaceTexture(null);
         }
-        notifySdlSurfaceDestroyed();
+        if (!keepRunningInBackground) {
+            notifySdlSurfaceDestroyed();
+        }
         return true;
     }
 
@@ -325,11 +347,13 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
 
     @Override
     protected void onPause() {
-        if (menu != null) {
-            menu.onPause();
+        if (!keepRunningInBackground) {
+            if (menu != null) {
+                menu.onPause();
+            }
+            CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_FOCUSED, 0);
+            CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_HOVERED, 0);
         }
-        CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_FOCUSED, 0);
-        CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_HOVERED, 0);
         super.onPause();
     }
 
@@ -351,7 +375,9 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
 
     @Override
     protected void onStop() {
-        CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_VISIBLE, 0);
+        if (!keepRunningInBackground) {
+            CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_VISIBLE, 0);
+        }
         super.onStop();
     }
 
@@ -426,12 +452,26 @@ public class JVMActivity extends FCLActivity implements SurfaceHolder.Callback, 
         CallbackBridge.resetInputState();
         SdlBridge.reset();
         FliteTts.shutdown();
+        if (keepRunningInBackground && textureView != null) {
+            SurfaceTexture retained = textureView.getSurfaceTexture();
+            if (retained != null && !retained.isReleased()) {
+                if (fclBridge != null) {
+                    fclBridge.setSurfaceDestroyed(true);
+                    fclBridge.setSurfaceTexture(null);
+                }
+                retained.release();
+            }
+        }
         super.onDestroy();
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus && keepRunningInBackground) {
+            // 后台保持运行：游戏仍视为有焦点，输入状态也不清
+            return;
+        }
         CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_FOCUSED, hasFocus ? 1 : 0);
         if (!hasFocus) {
             CallbackBridge.resetInputState();

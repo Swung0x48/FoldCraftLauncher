@@ -1437,6 +1437,8 @@
     <string name="menu_settings_capture_mobilegl_trace_requested">MobileGL trace capture requested</string>
     <string name="menu_settings_capture_mobilegl_trace_failed">Failed to request MobileGL trace capture</string>
     <string name="settings_fcl_texture_view">Use upstream TextureView game surface</string>
+    <string name="settings_fcl_keep_running_in_background">Keep the game running in the background</string>
+    <string name="settings_fcl_keep_running_in_background_desc">Do not pause the game when its screen leaves the foreground, and keep its surface alive (forces the TextureView surface). Only for renderers that draw into another window (e.g. the MobileGL render server); with a renderer that draws into this screen the picture stops.</string>
     <string name="settings_fcl_renderer_zink_kopper" translatable="false">Mesa Zink + Kopper (OpenGL 4.6)</string>
     <string name="settings_fcl_renderer_mobileglues" translatable="false">MobileGlues (Dev)</string>
     <string name="settings_fcl_renderer_mobilegl_espryt" translatable="false">MobileGL (Dev, Espryt)</string>

@@ -1084,4 +1084,6 @@
     <string name="version_list_refreshing">正在獲取遠程版本列表…</string>
 
     <string name="settings_fcl_texture_view">使用上游TextureView顯示遊戲畫面</string>
+    <string name="settings_fcl_keep_running_in_background">遊戲退到背景時不暫停</string>
+    <string name="settings_fcl_keep_running_in_background_desc">遊戲介面離開前景時不暫停遊戲，並保留它的畫面 surface（會強制使用 TextureView）。僅用於把畫面渲染到別的視窗的渲染器（例如 MobileGL render server）；渲染器畫在本介面上時，開啟後畫面會停住。</string>
 </resources>

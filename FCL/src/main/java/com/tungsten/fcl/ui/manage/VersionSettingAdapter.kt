@@ -186,6 +186,13 @@ class VersionSettingAdapter(
                 group = SettingGroup.Render,
             )
             result += Row.SwitchRow(
+                R.string.settings_fcl_keep_running_in_background,
+                { versionSetting.isKeepRunningInBackground },
+                { versionSetting.isKeepRunningInBackground = it },
+                descriptionRes = R.string.settings_fcl_keep_running_in_background_desc,
+                group = SettingGroup.Render,
+            )
+            result += Row.SwitchRow(
                 R.string.settings_fcl_vulkan_driver_system,
                 { versionSetting.isVKDriverSystem },
                 { listener.onSpecialSwitch(VersionSettingTag.VULKAN, it) },

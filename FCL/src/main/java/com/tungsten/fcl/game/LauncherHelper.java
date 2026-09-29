@@ -281,7 +281,8 @@ public final class LauncherHelper {
                             fclBridge.setController(repository.getVersionSetting(selectedVersion).getController());
                             fclBridge.setGameDir(repository.getRunDirectory(selectedVersion).getAbsolutePath());
                             fclBridge.setJava(Integer.toString(javaVersionRef.get().getVersion()));
-                            JVMActivity.setFCLBridge(fclBridge, MenuType.GAME, repository.getVersionSetting(selectedVersion).isUseTextureView());
+                            JVMActivity.setFCLBridge(fclBridge, MenuType.GAME, repository.getVersionSetting(selectedVersion).isUseTextureView(),
+                                    repository.getVersionSetting(selectedVersion).isKeepRunningInBackground());
                             Bundle bundle = new Bundle();
                             bundle.putString("controller", repository.getVersionSetting(selectedVersion).getController());
                             bundle.putString("TERRACOTTA_PLAYER", account.getUsername());

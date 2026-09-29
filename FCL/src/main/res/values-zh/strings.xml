@@ -1295,6 +1295,8 @@
     <string name="animation_idle_variant_3">待机变体 3</string>
 
     <string name="settings_fcl_texture_view">使用上游TextureView显示游戏画面</string>
+    <string name="settings_fcl_keep_running_in_background">游戏退到后台时不暂停</string>
+    <string name="settings_fcl_keep_running_in_background_desc">游戏界面离开前台时不暂停游戏，并保留它的画面 surface（会强制使用 TextureView）。仅用于把画面渲染到别的窗口的渲染器（例如 MobileGL render server）；渲染器画在本界面上时，开启后画面会停住。</string>
     <string name="settings_launcher_auto_countdown_launch">自动倒数启动</string>
     <string name="launcher_auto_countdown_title">自动启动</string>
     <string name="launcher_auto_countdown_message">将在 %2$d 秒后自动启动当前选中的实例“%1$s”。\n点击“取消”可留在启动器。</string>

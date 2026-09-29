@@ -172,6 +172,14 @@ class VersionSetting : Cloneable {
             changed()
         }
 
+    /** 游戏界面退到后台时不暂停渲染（供渲染画面在别的窗口上屏的场景，如 MobileGL render server）。 */
+    var isKeepRunningInBackground: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            changed()
+        }
+
     var isVKDriverSystem: Boolean = false
         set(value) {
             if (field == value) return
@@ -263,6 +271,7 @@ class VersionSetting : Cloneable {
             it.isIsolateGameDir = isIsolateGameDir
             it.graphicsBackend = graphicsBackend
             it.isUseTextureView = isUseTextureView
+            it.isKeepRunningInBackground = isKeepRunningInBackground
             it.isVKDriverSystem = isVKDriverSystem
             it.controller = controller
             it.renderer = renderer
@@ -296,6 +305,7 @@ class VersionSetting : Cloneable {
                 addProperty("notCheckJVM", src.isNotCheckJVM)
                 addProperty("graphicsBackend", src.graphicsBackend)
                 addProperty("textureView", src.isUseTextureView)
+                addProperty("keepRunningInBackground", src.isKeepRunningInBackground)
                 addProperty("vulkanDriverSystem", src.isVKDriverSystem)
                 addProperty("controller", src.controller)
                 addProperty("renderer", src.renderer)
@@ -335,6 +345,7 @@ class VersionSetting : Cloneable {
                 vs.isNotCheckJVM = json["notCheckJVM"]?.asBoolean ?: false
                 vs.graphicsBackend = json["graphicsBackend"]?.asString ?: "default"
                 vs.isUseTextureView = json["textureView"]?.asBoolean ?: false
+                vs.isKeepRunningInBackground = json["keepRunningInBackground"]?.asBoolean ?: false
                 vs.isVKDriverSystem = json["vulkanDriverSystem"]?.asBoolean ?: false
                 vs.controller = json["controller"]?.asString ?: ("00000000")
                 vs.renderer =
